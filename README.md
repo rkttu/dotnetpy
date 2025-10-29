@@ -196,6 +196,15 @@ if (dictionary != null)
 }
 ```
 
+## Roadmap
+
+The following features are planned for future releases:
+
+- **Automatic Python Discovery**: Cross-platform automatic detection and discovery of installed Python distributions, eliminating the need for manual library path configuration.
+- **Embeddable Python Support (Windows)**: Automatic setup and configuration of embeddable Python packages on Windows for simplified deployment scenarios.
+- **Virtual Environment (venv) Support**: Enhanced support for working with Python virtual environments, including automatic activation and package management.
+- **AI and Data Science Scenarios**: Specialized support and optimizations for AI and data science workflows, including better integration with popular libraries like NumPy, Pandas, and machine learning frameworks.
+
 ## License
 
-This project is licensed under the Apache License 2.0. Please see the `LICENSE.txt` file for details.
+This project is licensed under the Apache License 2.0. Please see the [LICENSE.txt](LICENSE.txt) file for details.
