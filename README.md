@@ -2,13 +2,24 @@
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-> **⚠️ EXPERIMENTAL**: This library is currently in an experimental stage and requires extensive testing before being used in production environments. APIs may change without notice, and there may be undiscovered bugs or stability issues. Use at your own risk.
+> **⚠️ EXPERIMENTAL**: This library is currently in an experimental stage and requires extensive testing before being used in production environments. APIs may change without notice, and there may be undiscovered issues.
 
 > **🤖 AI-Assisted Development**: Significant portions of this codebase were written with the assistance of AI code assistants. While the code has been reviewed and tested, users should be aware of this development approach.
 
-> **💡 Recommendation**: If you need a stable, battle-tested solution for .NET and Python interoperability, we recommend using [Python.NET (pythonnet)](https://github.com/pythonnet/pythonnet) instead. Python.NET is a mature, well-maintained library with extensive community support and production-ready stability.
+> **💡 Recommendation**: If you need a stable, battle-tested solution for .NET and Python interoperability, we recommend using [Python.NET (pythonnet)](https://github.com/pythonnet/pythonnet) instead. See our [comparison guide](docs/COMPARISON.md) for detailed differences.
 
-DotNetPy (pronounced `dot-net-pie`) is a .NET library that allows you to seamlessly execute Python code directly from your C# applications. It provides a simple and intuitive API to run Python scripts, evaluate expressions, and exchange data between .NET and Python environments.
+DotNetPy (pronounced `dot-net-pie`) is a .NET library that allows you to seamlessly execute Python code directly from your C# applications. It provides a simple and intuitive API to run Python scripts and evaluate expressions with minimal boilerplate.
+
+## Why DotNetPy?
+
+DotNetPy is designed to be the **lightest way to run Python from .NET**:
+
+- ✅ **Zero Boilerplate**: No GIL management or Source Generator setup required
+- ✅ **AOT-Friendly**: Explicitly designed for Native AOT scenarios
+- ✅ **Minimal Learning Curve**: Start executing Python in just a few lines
+- ✅ **Transparent Development**: Experimental status clearly communicated
+
+**Not sure which Python interop library to choose?** Check out our [detailed comparison](docs/COMPARISON.md) with pythonnet and CSnakes.
 
 ## Features
 
@@ -195,6 +206,10 @@ if (dictionary != null)
     Console.WriteLine(address["street"]); // Output: 123 Main St
 }
 ```
+
+## Comparison with Other Libraries
+
+Wondering how DotNetPy compares to pythonnet or CSnakes? Check out our [detailed comparison guide](docs/COMPARISON.md) to understand the differences and choose the right tool for your needs.
 
 ## Roadmap
 
