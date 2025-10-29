@@ -1,7 +1,6 @@
 namespace DotNetPy.UnitTest;
 
-//[TestClass]
-[Ignore("SequentialTestRunner로 통합됨")]
+[TestClass]
 public sealed class MarshallingTests
 {
     // 데이터 타입 변환 테스트

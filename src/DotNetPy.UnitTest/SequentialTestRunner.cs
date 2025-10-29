@@ -1,9 +1,6 @@
 namespace DotNetPy.UnitTest;
 
-/// <summary>
-/// 모든 테스트를 순차적으로 실행하는 통합 테스트 클래스
-/// </summary>
-[TestClass]
+//[TestClass]
 public sealed class SequentialTestRunner
 {
     private static DotNetPyExecutor _executor = default!;

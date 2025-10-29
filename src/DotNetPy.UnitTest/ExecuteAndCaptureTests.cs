@@ -1,7 +1,6 @@
 namespace DotNetPy.UnitTest;
 
-//[TestClass]
-[Ignore("SequentialTestRunner로 통합됨")]
+[TestClass]
 public sealed class ExecuteAndCaptureTests
 {
     // 변수 주입 및 데이터 교환 테스트

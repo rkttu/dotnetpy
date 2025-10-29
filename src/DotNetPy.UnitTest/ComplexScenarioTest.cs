@@ -1,7 +1,6 @@
 namespace DotNetPy.UnitTest;
 
-//[TestClass]
-[Ignore("SequentialTestRunner로 통합됨")]
+[TestClass]
 public sealed class ComplexScenarioTest
 {
     // 복잡한 시나리오 테스트

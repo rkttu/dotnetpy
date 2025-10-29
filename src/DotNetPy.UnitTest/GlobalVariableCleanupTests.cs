@@ -1,7 +1,6 @@
 namespace DotNetPy.UnitTest;
 
-//[TestClass]
-[Ignore("SequentialTestRunner로 통합됨")]
+[TestClass]
 public sealed class GlobalVariableCleanupTests
 {
     // 전역 변수 정리 테스트

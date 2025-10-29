@@ -1,7 +1,6 @@
 namespace DotNetPy.UnitTest;
 
-//[TestClass]
-[Ignore("SequentialTestRunner로 통합됨")]
+[TestClass]
 public sealed class ExceptionHandlingTests
 {
     // 예외 처리 테스트

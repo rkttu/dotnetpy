@@ -523,8 +523,30 @@ _is_valid = '{EscapePythonString(name)}'.isidentifier() and not keyword.iskeywor
                 break;
 
             default:
-                // Fallback for complex objects
-                writer.WriteStringValue(value.ToString());
+                // 익명 타입 및 일반 객체를 리플렉션으로 직렬화
+                var type = value.GetType();
+                if (type.Namespace == null || type.Name.Contains("AnonymousType"))
+                {
+                    // 익명 타입 처리
+                    writer.WriteStartObject();
+                    foreach (var prop in type.GetProperties())
+                    {
+                        writer.WritePropertyName(prop.Name);
+                        WriteJsonValue(writer, prop.GetValue(value));
+                    }
+                    writer.WriteEndObject();
+                }
+                else
+                {
+                    // 일반 객체를 리플렉션으로 직렬화
+                    writer.WriteStartObject();
+                    foreach (var prop in type.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+                    {
+                        writer.WritePropertyName(prop.Name);
+                        WriteJsonValue(writer, prop.GetValue(value));
+                    }
+                    writer.WriteEndObject();
+                }
                 break;
         }
     }
