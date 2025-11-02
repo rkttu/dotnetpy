@@ -23,6 +23,8 @@ DotNetPy is designed to be the **lightest way to run Python from .NET**:
 
 ## Features
 
+- **Automatic Python Discovery**: Cross-platform automatic detection of installed Python distributions with configurable requirements (version, architecture).
+- **Runtime Information**: Query and inspect the currently active Python runtime configuration.
 - **Execute Python Code**: Run multi-line Python scripts.
 - **Evaluate Expressions**: Directly evaluate single-line Python expressions and get the result.
 - **Data Marshaling**:
@@ -255,7 +257,7 @@ For CPU-intensive parallel workloads, consider:
 
 The following features are planned for future releases:
 
-- **Automatic Python Discovery**: Cross-platform automatic detection and discovery of installed Python distributions, eliminating the need for manual library path configuration.
+- ✅ **Automatic Python Discovery** _(Completed)_: Cross-platform automatic detection and discovery of installed Python distributions, eliminating the need for manual library path configuration.
 - **Embeddable Python Support (Windows)**: Automatic setup and configuration of embeddable Python packages on Windows for simplified deployment scenarios.
 - **Virtual Environment (venv) Support**: Enhanced support for working with Python virtual environments, including automatic activation and package management.
 - **AI and Data Science Scenarios**: Specialized support and optimizations for AI and data science workflows, including better integration with popular libraries like NumPy, Pandas, and machine learning frameworks.

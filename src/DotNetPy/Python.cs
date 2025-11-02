@@ -39,7 +39,7 @@ public static class Python
                 "No suitable Python installation found. Please install Python or specify the library path manually using Python.Initialize(string libraryPath).");
         }
 
-        var _ = DotNetPyExecutor.GetInstance(pythonInfo.LibraryPath);
+        var _ = DotNetPyExecutor.GetInstance(pythonInfo.LibraryPath, pythonInfo);
     }
 
     /// <summary>
@@ -74,8 +74,14 @@ public static class Python
         // Correct Usage Pattern:
         //   DotNetPy.Initialize(customPath);  // Global initialization
         //   var executor = DotNetPy.Instance; // Access the singleton
-        var _ = DotNetPyExecutor.GetInstance(libraryPath);
+        var _ = DotNetPyExecutor.GetInstance(libraryPath, null);
     }
+
+    /// <summary>
+    /// Gets information about the currently initialized Python installation.
+    /// Returns null if Python has not been initialized yet.
+    /// </summary>
+    public static PythonInfo? CurrentPythonInfo => DotNetPyExecutor.CurrentPythonInfo;
 
     /// <summary>
     /// Executes Python code.

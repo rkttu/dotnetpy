@@ -28,6 +28,22 @@ catch (DotNetPyException ex)
     Environment.Exit(1);
 }
 
+// Display current Python info
+var currentPython = Python.CurrentPythonInfo;
+if (currentPython != null)
+{
+    Console.WriteLine("\n=== Currently Using Python ===");
+    Console.WriteLine($"Version: {currentPython.Version}");
+    Console.WriteLine($"Architecture: {currentPython.Architecture}");
+    Console.WriteLine($"Source: {currentPython.Source}");
+    Console.WriteLine($"Executable: {currentPython.ExecutablePath}");
+    Console.WriteLine($"Library: {currentPython.LibraryPath}");
+    if (!string.IsNullOrEmpty(currentPython.HomeDirectory))
+    {
+        Console.WriteLine($"Home Directory: {currentPython.HomeDirectory}");
+    }
+}
+
 // Discover all available Python installations
 var allPythons = PythonDiscovery.FindAll();
 Console.WriteLine($"\nFound {allPythons.Count} Python installation(s):");

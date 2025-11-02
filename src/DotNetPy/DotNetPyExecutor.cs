@@ -23,13 +23,14 @@ public sealed partial class DotNetPyExecutor : IDisposable
     };
 
     private static readonly Encoding _utf8Encoding = new UTF8Encoding(false);
-    private static readonly object _instanceLock = new object();
+    private static readonly object _instanceLock = new();
     private static volatile DotNetPyExecutor? _instance = null;
     private static int _referenceCount = 0;
 
-    private static readonly object _initLock = new object();
+    private static readonly object _initLock = new();
     private static volatile bool _initialized = false;
     private static string? _initializedLibraryPath = null;
+    private static PythonInfo? _currentPythonInfo = null;
     private static IntPtr _libraryHandle = IntPtr.Zero;
     private volatile bool _disposed = false;
 
@@ -150,9 +151,9 @@ public sealed partial class DotNetPyExecutor : IDisposable
     /// <summary>
     /// Private constructor - instance can only be created through GetInstance().
     /// </summary>
-    private DotNetPyExecutor(string? libraryPath)
+    private DotNetPyExecutor(string? libraryPath, PythonInfo? pythonInfo)
     {
-        EnsureInitialized(libraryPath);
+        EnsureInitialized(libraryPath, pythonInfo);
     }
 
     /// <summary>
@@ -160,9 +161,10 @@ public sealed partial class DotNetPyExecutor : IDisposable
     /// Only one instance exists per process.
     /// </summary>
     /// <param name="libraryPath">The path to the Python library (only used on the first call).</param>
+    /// <param name="pythonInfo">Optional PythonInfo to store metadata about the Python installation.</param>
     /// <returns>The DotNetPyExecutor instance.</returns>
     /// <exception cref="InvalidOperationException">Thrown if already initialized with a different path.</exception>
-    public static DotNetPyExecutor GetInstance(string? libraryPath = null)
+    public static DotNetPyExecutor GetInstance(string? libraryPath = null, PythonInfo? pythonInfo = null)
     {
         // Fast path: If already created and no libraryPath is specified, perform a quick check.
         var currentInstance = _instance;
@@ -184,7 +186,7 @@ public sealed partial class DotNetPyExecutor : IDisposable
             // If it's disposed or no instance exists, create a new one.
             if (_instance == null || _instance._disposed)
             {
-                _instance = new DotNetPyExecutor(libraryPath);
+                _instance = new DotNetPyExecutor(libraryPath, pythonInfo);
                 _referenceCount = 1;
                 return _instance;
             }
@@ -198,11 +200,11 @@ public sealed partial class DotNetPyExecutor : IDisposable
 
             // Validate if already initialized with a different path.
             if (libraryPath != null && _initializedLibraryPath != null &&
-                !string.Equals(libraryPath, _initializedLibraryPath, StringComparison.OrdinalIgnoreCase))
+         !string.Equals(libraryPath, _initializedLibraryPath, StringComparison.OrdinalIgnoreCase))
             {
                 throw new DotNetPyException(
-                    $"The Python runtime has already been initialized with a different path. " +
-                    $"Initialized path: {_initializedLibraryPath}, Requested path: {libraryPath}");
+           $"The Python runtime has already been initialized with a different path. " +
+                   $"Initialized path: {_initializedLibraryPath}, Requested path: {libraryPath}");
             }
 
             Interlocked.Increment(ref _referenceCount);
@@ -225,6 +227,21 @@ public sealed partial class DotNetPyExecutor : IDisposable
     }
 
     /// <summary>
+    /// Gets information about the currently initialized Python installation.
+    /// Returns null if Python has not been initialized yet.
+    /// </summary>
+    public static PythonInfo? CurrentPythonInfo
+    {
+        get
+        {
+            lock (_initLock)
+            {
+                return _currentPythonInfo;
+            }
+        }
+    }
+
+    /// <summary>
     /// Validates the library path without actually loading it.
     /// </summary>
     private static void ValidateLibraryPath(string libraryPath)
@@ -237,7 +254,7 @@ public sealed partial class DotNetPyExecutor : IDisposable
     /// <summary>
     /// Initializes the Python interpreter (once per process).
     /// </summary>
-    private static void EnsureInitialized(string? libraryPath)
+    private static void EnsureInitialized(string? libraryPath, PythonInfo? pythonInfo)
     {
         if (_initialized)
             return;
@@ -250,6 +267,7 @@ public sealed partial class DotNetPyExecutor : IDisposable
             // Load the library
             LoadPythonLibrary(libraryPath);
             _initializedLibraryPath = libraryPath;
+            _currentPythonInfo = pythonInfo;
 
             // Initialize Python
             _pyInitialize!();
@@ -833,7 +851,7 @@ _var_exists_check = '{EscapePythonString(variableName)}' in globals()
         ThrowIfDisposed();
 
         if (variableNames.Length == 0)
-            return Array.Empty<string>();
+            return [];
 
         // Validate variable names
         foreach (var varName in variableNames)
@@ -856,7 +874,7 @@ _existing_vars = [v for v in [{checkList}] if v in globals()]
             using var doc = CaptureVariableInternal("_existing_vars");
 
             if (doc == null)
-                return Array.Empty<string>();
+                return [];
 
             var existing = new List<string>();
             foreach (var element in doc.RootElement.EnumerateArray())
@@ -1115,7 +1133,7 @@ _json_result = json.dumps(_captured_dict, ensure_ascii=False, default=str)
                 // Remove minIndent
                 if (lines[i].Length > minIndent)
                 {
-                    result.AppendLine(lines[i].Substring(minIndent));
+                    result.AppendLine(lines[i][minIndent..]);
                 }
                 else
                 {
@@ -1125,10 +1143,10 @@ _json_result = json.dumps(_captured_dict, ensure_ascii=False, default=str)
         }
 
         // Remove the last empty line
-        if (result.Length > 0 && result[result.Length - 1] == '\n')
+        if (result.Length > 0 && result[^1] == '\n')
         {
             result.Length--;
-            if (result.Length > 0 && result[result.Length - 1] == '\r')
+            if (result.Length > 0 && result[^1] == '\r')
                 result.Length--;
         }
 
@@ -1143,31 +1161,7 @@ _json_result = json.dumps(_captured_dict, ensure_ascii=False, default=str)
     /// This method safely handles borrowed references.
     /// PyUnicodeAsUTF8String returns a new reference even if the input is a borrowed reference.
     /// </remarks>
-    private string? PyObjectToString(IntPtr obj)
-    {
-        if (obj == IntPtr.Zero)
-            return null;
-
-        using var bytesObj = DotNetPyObject.FromNewReference(_pyUnicodeAsUTF8String!(obj));
-        if (bytesObj == null || bytesObj.IsInvalid)
-            return null;
-
-        IntPtr strPtr = _pyBytesAsString!(bytesObj.DangerousGetHandle());
-        if (strPtr == IntPtr.Zero)
-            return null;
-
-        return Marshal.PtrToStringUTF8(strPtr);
-    }
-
-    /// <summary>
-    /// Converts a Python object to a string.
-    /// </summary>
-    /// <param name="obj">The Python object to convert (allows borrowed reference).</param>
-    /// <remarks>
-    /// This method safely handles borrowed references.
-    /// PyUnicodeAsUTF8String returns a new reference even if the input is a borrowed reference.
-    /// </remarks>
-    private string? PyObjectToString(DotNetPyObject obj)
+    private static string? PyObjectToString(DotNetPyObject obj)
     {
         if (obj == null || obj.IsInvalid)
             return null;
@@ -1186,7 +1180,7 @@ _json_result = json.dumps(_captured_dict, ensure_ascii=False, default=str)
     /// <summary>
     /// Captures Python exception information and returns it as a string.
     /// </summary>
-    private string? GetPythonError()
+    private static string? GetPythonError()
     {
         if (_pyErrOccurred!() == IntPtr.Zero)
             return null;
@@ -1269,7 +1263,7 @@ _json_result = json.dumps(_captured_dict, ensure_ascii=False, default=str)
     /// <summary>
     /// Formats a traceback object into a string.
     /// </summary>
-    private string? FormatTraceback(DotNetPyObject traceback)
+    private static string? FormatTraceback(DotNetPyObject traceback)
     {
         try
         {
@@ -1341,7 +1335,7 @@ if _var_delete_existed:
         ThrowIfDisposed();
 
         if (variableNames.Length == 0)
-            return Array.Empty<string>();
+            return [];
 
         // Validate variable names
         foreach (var varName in variableNames)
@@ -1368,7 +1362,7 @@ for v in [{checkList}]:
             using var doc = CaptureVariableInternal("_deleted_vars");
 
             if (doc == null)
-                return Array.Empty<string>();
+                return [];
 
             var deleted = new List<string>();
             foreach (var element in doc.RootElement.EnumerateArray())
@@ -1411,7 +1405,7 @@ del _to_delete
     /// <summary>
     /// Cleans up a temporary variable (logs an error on failure).
     /// </summary>
-    private void CleanupTemporaryVariable(string variableName)
+    private static void CleanupTemporaryVariable(string variableName)
     {
         try
         {
@@ -1427,7 +1421,7 @@ del _to_delete
     /// <summary>
     /// Cleans up multiple temporary variables.
     /// </summary>
-    private void CleanupTemporaryVariables(params string[] variableNames)
+    private static void CleanupTemporaryVariables(params string[] variableNames)
     {
         foreach (var varName in variableNames)
         {
@@ -1437,8 +1431,7 @@ del _to_delete
 
     private void ThrowIfDisposed()
     {
-        if (_disposed)
-            throw new ObjectDisposedException(nameof(DotNetPyExecutor));
+        ObjectDisposedException.ThrowIf(_disposed, nameof(DotNetPyExecutor));
     }
 
     /// <summary>
