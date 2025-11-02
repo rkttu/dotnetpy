@@ -1,12 +1,39 @@
-// TODO: Auto Discovery
-// TODO: Reference count management with SafeHandle
-
 using DotNetPy;
 
-var pythonLibraryPath = Path.Combine(
-    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-    "Programs", "Python", "Python313", "python313.dll");
-Python.Initialize(pythonLibraryPath);
+// ====================================================================
+// Automatic Python Discovery
+// ====================================================================
+Console.WriteLine("=== Automatic Python Discovery ===");
+
+try
+{
+    // Option 1: Automatic discovery (simplest - finds the best Python automatically)
+    Python.Initialize();
+    Console.WriteLine("✓ Python initialized with automatic discovery");
+    
+    // You can also specify requirements:
+    // Python.Initialize(new PythonDiscoveryOptions 
+    // { 
+    //   MinimumVersion = new Version(3, 10),
+    //     RequiredArchitecture = Architecture.X64
+    // });
+}
+catch (DotNetPyException ex)
+{
+    Console.WriteLine($"✗ Auto-discovery failed: {ex.Message}");
+    Console.WriteLine("  Please install Python from https://www.python.org/");
+    Environment.Exit(1);
+}
+
+// Discover all available Python installations
+var allPythons = PythonDiscovery.FindAll();
+Console.WriteLine($"\nFound {allPythons.Count} Python installation(s):");
+foreach (var python in allPythons)
+{
+    Console.WriteLine($"  - {python}");
+}
+
+Console.WriteLine("\n=== Basic Evaluation ===");
 
 var executor = Python.GetInstance();
 

@@ -9,15 +9,16 @@ public sealed class DotNetPyValueAdvancedTests
     [ClassInitialize]
     public static void ClassInitialize(TestContext context)
     {
-        var pythonLibraryPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Programs", "Python", "Python313", "python313.dll");
-
-        if (!File.Exists(pythonLibraryPath))
-            Assert.Inconclusive($"Python library not found at {pythonLibraryPath}");
-
-        Python.Initialize(pythonLibraryPath);
-        _executor = Python.GetInstance();
+        try
+        {
+            // Use automatic Python discovery
+            Python.Initialize();
+            _executor = Python.GetInstance();
+        }
+        catch (DotNetPyException ex)
+        {
+            Assert.Inconclusive($"Python not found: {ex.Message}");
+        }
     }
 
     [TestInitialize]

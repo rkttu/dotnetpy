@@ -4,19 +4,19 @@ namespace DotNetPy.UnitTest;
 public sealed class PythonStaticApiTests
 {
     // Python 정적 클래스 API 테스트
-    private static string _pythonLibraryPath = default!;
 
     [ClassInitialize]
     public static void ClassInitialize(TestContext context)
     {
-        _pythonLibraryPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Programs", "Python", "Python313", "python313.dll");
-
-        if (!File.Exists(_pythonLibraryPath))
-            Assert.Inconclusive($"Python library not found at {_pythonLibraryPath}");
-
-        Python.Initialize(_pythonLibraryPath);
+        try
+        {
+   // Use automatic Python discovery
+     Python.Initialize();
+    }
+ catch (DotNetPyException ex)
+        {
+     Assert.Inconclusive($"Python not found: {ex.Message}");
+   }
     }
 
     [TestInitialize]

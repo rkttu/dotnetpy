@@ -19,8 +19,33 @@ public static class Python
         => _default.Value;
 
     /// <summary>
-    /// Initializes Python with a specific library path (optional).
+    /// Initializes Python with automatic discovery (finds the best available Python installation).
     /// </summary>
+    /// <param name="options">Optional discovery options to filter Python installations.</param>
+    /// <remarks>
+    /// This method must be called before the first Python call.
+    /// Calling it after initialization will throw an exception.
+    /// </remarks>
+    /// <exception cref="DotNetPyException">Thrown when no suitable Python installation is found.</exception>
+    public static void Initialize(PythonDiscoveryOptions? options = null)
+    {
+        if (_default.IsValueCreated)
+            return;
+
+        var pythonInfo = PythonDiscovery.FindPython(options);
+        if (pythonInfo == null)
+        {
+            throw new DotNetPyException(
+                "No suitable Python installation found. Please install Python or specify the library path manually using Python.Initialize(string libraryPath).");
+        }
+
+        var _ = DotNetPyExecutor.GetInstance(pythonInfo.LibraryPath);
+    }
+
+    /// <summary>
+    /// Initializes Python with a specific library path.
+    /// </summary>
+    /// <param name="libraryPath">The path to the Python shared library.</param>
     /// <remarks>
     /// This method must be called before the first Python call.
     /// Calling it after initialization will throw an exception.
