@@ -14,11 +14,11 @@ public sealed class SequentialTestRunner
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Programs", "Python", "Python313", "python313.dll");
 
-      // Python이 설치되어 있지 않으면 테스트 스킵
+        // Python이 설치되어 있지 않으면 테스트 스킵
         if (!File.Exists(pythonLibraryPath))
             Assert.Inconclusive($"Python library not found at {pythonLibraryPath}");
 
-      Python.Initialize(pythonLibraryPath);
+        Python.Initialize(pythonLibraryPath);
         _executor = Python.GetInstance();
     }
 
@@ -29,20 +29,20 @@ public sealed class SequentialTestRunner
         Console.WriteLine("\n========================================");
         Console.WriteLine("테스트 실행 결과 요약");
         Console.WriteLine("========================================");
- 
+
         var passed = _testResults.Count(r => r.Passed);
         var failed = _testResults.Count(r => !r.Passed);
         var total = _testResults.Count;
 
         foreach (var result in _testResults)
-   {
-   var status = result.Passed ? "✓ PASSED" : "✗ FAILED";
+        {
+            var status = result.Passed ? "✓ PASSED" : "✗ FAILED";
             Console.WriteLine($"{status}: {result.TestName}");
-          if (!result.Passed && !string.IsNullOrEmpty(result.ErrorMessage))
-       {
-     Console.WriteLine($"  Error: {result.ErrorMessage}");
-      }
-  }
+            if (!result.Passed && !string.IsNullOrEmpty(result.ErrorMessage))
+            {
+                Console.WriteLine($"  Error: {result.ErrorMessage}");
+            }
+        }
 
         Console.WriteLine($"\n총 {total}개 테스트 중 {passed}개 성공, {failed}개 실패");
         Console.WriteLine("========================================\n");
@@ -51,16 +51,16 @@ public sealed class SequentialTestRunner
     [TestMethod]
     public void RunAllTestsSequentially()
     {
-  _testResults.Clear();
+        _testResults.Clear();
 
- // 1. Evaluate Tests
+        // 1. Evaluate Tests
         RunTestGroup("EvaluateTests", RunEvaluateTests);
 
         // 2. Execute And Capture Tests
         RunTestGroup("ExecuteAndCaptureTests", RunExecuteAndCaptureTests);
 
-    // 3. Capture Manage Variable Tests
-   RunTestGroup("CaptureManageVariableTests", RunCaptureManageVariableTests);
+        // 3. Capture Manage Variable Tests
+        RunTestGroup("CaptureManageVariableTests", RunCaptureManageVariableTests);
 
         // 4. Marshalling Tests
         RunTestGroup("MarshallingTests", RunMarshallingTests);
@@ -71,15 +71,15 @@ public sealed class SequentialTestRunner
         // 6. Global Variable Cleanup Tests
         RunTestGroup("GlobalVariableCleanupTests", RunGlobalVariableCleanupTests);
 
-  // 7. Complex Scenario Tests
+        // 7. Complex Scenario Tests
         RunTestGroup("ComplexScenarioTests", RunComplexScenarioTests);
 
         // 실패한 테스트가 있으면 Assert 실패
         var failedTests = _testResults.Where(r => !r.Passed).ToList();
         if (failedTests.Any())
         {
-          var failedNames = string.Join(", ", failedTests.Select(t => t.TestName));
-          Assert.Fail($"{failedTests.Count}개의 테스트가 실패했습니다: {failedNames}");
+            var failedNames = string.Join(", ", failedTests.Select(t => t.TestName));
+            Assert.Fail($"{failedTests.Count}개의 테스트가 실패했습니다: {failedNames}");
         }
     }
 
@@ -92,29 +92,29 @@ public sealed class SequentialTestRunner
         }
         catch (Exception ex)
         {
-  Console.WriteLine($"테스트 그룹 '{groupName}' 실행 중 예외 발생: {ex.Message}");
-  }
+            Console.WriteLine($"테스트 그룹 '{groupName}' 실행 중 예외 발생: {ex.Message}");
+        }
     }
 
     private static void RunTest(string testName, Action testAction)
     {
- // 각 테스트 전에 전역 변수 정리
+        // 각 테스트 전에 전역 변수 정리
         _executor.ClearGlobals();
 
         Console.Write($"  {testName}... ");
         try
-     {
-   testAction();
-       _testResults.Add(new TestResult { TestName = testName, Passed = true });
+        {
+            testAction();
+            _testResults.Add(new TestResult { TestName = testName, Passed = true });
             Console.WriteLine("✓");
         }
         catch (Exception ex)
-   {
-        _testResults.Add(new TestResult 
-            { 
-     TestName = testName, 
-  Passed = false, 
-         ErrorMessage = ex.Message 
+        {
+            _testResults.Add(new TestResult
+            {
+                TestName = testName,
+                Passed = false,
+                ErrorMessage = ex.Message
             });
             Console.WriteLine($"✗ ({ex.Message})");
         }
@@ -124,58 +124,58 @@ public sealed class SequentialTestRunner
 
     private static void RunEvaluateTests()
     {
-   RunTest("SimpleArithmetic_ReturnsCorrectResult", () =>
-   {
-       var result = _executor.Evaluate("1 + 1");
-   Assert.IsNotNull(result);
-    Assert.AreEqual(2, result.GetInt32());
+        RunTest("SimpleArithmetic_ReturnsCorrectResult", () =>
+        {
+            var result = _executor.Evaluate("1 + 1");
+            Assert.IsNotNull(result);
+            Assert.AreEqual(2, result.GetInt32());
         });
 
         RunTest("StringLength_ReturnsCorrectResult", () =>
      {
-      var result = _executor.Evaluate("len('hello')");
-     Assert.IsNotNull(result);
-       Assert.AreEqual(5, result.GetInt32());
-        });
+         var result = _executor.Evaluate("len('hello')");
+         Assert.IsNotNull(result);
+         Assert.AreEqual(5, result.GetInt32());
+     });
 
         RunTest("ListSum_ReturnsCorrectResult", () =>
         {
-  var result = _executor.Evaluate("sum([1, 2, 3, 4, 5])");
-    Assert.IsNotNull(result);
+            var result = _executor.Evaluate("sum([1, 2, 3, 4, 5])");
+            Assert.IsNotNull(result);
             Assert.AreEqual(15, result.GetInt32());
-    });
+        });
 
         RunTest("Execute_InvalidPythonCode_ThrowsException", () =>
 {
-      try
+    try
     {
-                _executor.Execute("this is not valid python code @#$%");
-         Assert.Fail("Expected DotNetPyException was not thrown");
+        _executor.Execute("this is not valid python code @#$%");
+        Assert.Fail("Expected DotNetPyException was not thrown");
     }
-            catch (DotNetPyException)
-         {
-                // Expected exception
-            }
-        });
+    catch (DotNetPyException)
+    {
+        // Expected exception
+    }
+});
 
         RunTest("ExecuteAndCapture_SimpleMath_ReturnsResult", () =>
     {
-            var result = _executor.ExecuteAndCapture("result = 10 * 5");
-            Assert.IsNotNull(result);
-            Assert.AreEqual(50, result.GetInt32());
-     });
+        var result = _executor.ExecuteAndCapture("result = 10 * 5");
+        Assert.IsNotNull(result);
+        Assert.AreEqual(50, result.GetInt32());
+    });
 
         RunTest("ExecuteAndCapture_ImportModule_CalculatesSquareRoot", () =>
    {
-     var code = @"
+       var code = @"
 import math
 result = math.sqrt(16)
 ";
- var result = _executor.ExecuteAndCapture(code);
-        Assert.IsNotNull(result);
-   Assert.AreEqual(4.0, result.GetDouble());
-        });
-}
+       var result = _executor.ExecuteAndCapture(code);
+       Assert.IsNotNull(result);
+       Assert.AreEqual(4.0, result.GetDouble());
+   });
+    }
 
     #endregion
 
@@ -185,20 +185,20 @@ result = math.sqrt(16)
     {
         RunTest("Execute_WithVariableInjection_UsesInjectedData", () =>
         {
-  var numbers = new[] { 10, 20, 30, 40, 50 };
-          var variables = new Dictionary<string, object?> { { "numbers", numbers } };
+            var numbers = new[] { 10, 20, 30, 40, 50 };
+            var variables = new Dictionary<string, object?> { { "numbers", numbers } };
 
-       _executor.Execute("result = sum(numbers)", variables);
-        var result = _executor.CaptureVariable("result");
+            _executor.Execute("result = sum(numbers)", variables);
+            var result = _executor.CaptureVariable("result");
 
-      Assert.IsNotNull(result);
+            Assert.IsNotNull(result);
             Assert.AreEqual(150, result.GetInt32());
-      });
+        });
 
         RunTest("ExecuteAndCapture_WithVariableInjection_ReturnsStatistics", () =>
         {
-      var numbers = new[] { 10, 20, 30, 40, 50 };
-          var code = @"
+            var numbers = new[] { 10, 20, 30, 40, 50 };
+            var code = @"
 import statistics
 result = {
     'sum': sum(numbers),
@@ -207,32 +207,32 @@ result = {
     'min': min(numbers)
 }
 ";
-     var result = _executor.ExecuteAndCapture(
-   code,
-    new Dictionary<string, object?> { { "numbers", numbers } });
+            var result = _executor.ExecuteAndCapture(
+          code,
+           new Dictionary<string, object?> { { "numbers", numbers } });
 
             Assert.IsNotNull(result);
             Assert.AreEqual(150.0, result.GetDouble("sum"));
-Assert.AreEqual(30.0, result.GetDouble("average"));
-   Assert.AreEqual(50, result.GetInt32("max"));
-     Assert.AreEqual(10, result.GetInt32("min"));
+            Assert.AreEqual(30.0, result.GetDouble("average"));
+            Assert.AreEqual(50, result.GetInt32("max"));
+            Assert.AreEqual(10, result.GetInt32("min"));
         });
 
         RunTest("Execute_WithMultipleVariables_UsesAllVariables", () =>
         {
-     var variables = new Dictionary<string, object?>
+            var variables = new Dictionary<string, object?>
       {
               { "x", 10 },
             { "y", 20 },
  { "name", "Test" }
   };
 
-          _executor.Execute("result = f'{name}: {x + y}'", variables);
+            _executor.Execute("result = f'{name}: {x + y}'", variables);
             var result = _executor.CaptureVariable("result");
 
             Assert.IsNotNull(result);
-  Assert.AreEqual("Test: 30", result.GetString());
-  });
+            Assert.AreEqual("Test: 30", result.GetString());
+        });
     }
 
     #endregion
@@ -243,21 +243,21 @@ Assert.AreEqual(30.0, result.GetDouble("average"));
     {
         RunTest("CaptureVariable_ExistingVariable_ReturnsValue", () =>
         {
-   _executor.Execute(@"
+            _executor.Execute(@"
 import math
 pi = math.pi
 ");
             var pi = _executor.CaptureVariable("pi");
 
             Assert.IsNotNull(pi);
-    var piValue = pi.GetDouble();
- Assert.IsNotNull(piValue);
-      Assert.AreEqual(Math.PI, piValue.Value, 0.0001);
-    });
+            var piValue = pi.GetDouble();
+            Assert.IsNotNull(piValue);
+            Assert.AreEqual(Math.PI, piValue.Value, 0.0001);
+        });
 
         RunTest("CaptureVariable_NonExistentVariable_ReturnsNull", () =>
         {
-    var result = _executor.CaptureVariable("non_existent_var");
+            var result = _executor.CaptureVariable("non_existent_var");
             Assert.IsNull(result);
         });
 
@@ -268,80 +268,80 @@ x = 10
 y = 20
 z = 30
 ");
-     using var results = _executor.CaptureVariables("x", "y", "z");
+            using var results = _executor.CaptureVariables("x", "y", "z");
 
-      Assert.IsNotNull(results);
-       Assert.AreEqual(3, results.Count);
+            Assert.IsNotNull(results);
+            Assert.AreEqual(3, results.Count);
             Assert.AreEqual(10, results["x"]?.GetInt32());
-          Assert.AreEqual(20, results["y"]?.GetInt32());
+            Assert.AreEqual(20, results["y"]?.GetInt32());
             Assert.AreEqual(30, results["z"]?.GetInt32());
         });
 
         RunTest("VariableExists_ExistingVariable_ReturnsTrue", () =>
         {
- _executor.Execute("test_var = 'exists'");
-         var exists = _executor.VariableExists("test_var");
-         Assert.IsTrue(exists);
-    });
+            _executor.Execute("test_var = 'exists'");
+            var exists = _executor.VariableExists("test_var");
+            Assert.IsTrue(exists);
+        });
 
         RunTest("VariableExists_NonExistentVariable_ReturnsFalse", () =>
         {
             var exists = _executor.VariableExists("non_existent");
-    Assert.IsFalse(exists);
-   });
+            Assert.IsFalse(exists);
+        });
 
         RunTest("GetExistingVariables_MixedVariables_ReturnsOnlyExisting", () =>
    {
-   _executor.Execute(@"
+       _executor.Execute(@"
 apple = 'fruit'
 banana = 'fruit'
 carrot = 'vegetable'
 ");
-            var existing = _executor.GetExistingVariables("apple", "banana", "orange", "carrot", "potato");
+       var existing = _executor.GetExistingVariables("apple", "banana", "orange", "carrot", "potato");
 
-  Assert.IsNotNull(existing);
-  Assert.HasCount(3, existing);
-            CollectionAssert.Contains(existing.ToList(), "apple");
-        CollectionAssert.Contains(existing.ToList(), "banana");
-            CollectionAssert.Contains(existing.ToList(), "carrot");
-  CollectionAssert.DoesNotContain(existing.ToList(), "orange");
-            CollectionAssert.DoesNotContain(existing.ToList(), "potato");
-        });
+       Assert.IsNotNull(existing);
+       Assert.HasCount(3, existing);
+       CollectionAssert.Contains(existing.ToList(), "apple");
+       CollectionAssert.Contains(existing.ToList(), "banana");
+       CollectionAssert.Contains(existing.ToList(), "carrot");
+       CollectionAssert.DoesNotContain(existing.ToList(), "orange");
+       CollectionAssert.DoesNotContain(existing.ToList(), "potato");
+   });
 
-      RunTest("DeleteVariable_ExistingVariable_DeletesAndReturnsTrue", () =>
-        {
-       _executor.Execute("temp_var = 'temporary'");
-     Assert.IsTrue(_executor.VariableExists("temp_var"));
+        RunTest("DeleteVariable_ExistingVariable_DeletesAndReturnsTrue", () =>
+          {
+              _executor.Execute("temp_var = 'temporary'");
+              Assert.IsTrue(_executor.VariableExists("temp_var"));
 
-      var deleted = _executor.DeleteVariable("temp_var");
+              var deleted = _executor.DeleteVariable("temp_var");
 
-       Assert.IsTrue(deleted);
-        Assert.IsFalse(_executor.VariableExists("temp_var"));
-        });
+              Assert.IsTrue(deleted);
+              Assert.IsFalse(_executor.VariableExists("temp_var"));
+          });
 
         RunTest("DeleteVariable_NonExistentVariable_ReturnsFalse", () =>
       {
           var deleted = _executor.DeleteVariable("non_existent");
-            Assert.IsFalse(deleted);
-        });
+          Assert.IsFalse(deleted);
+      });
 
-    RunTest("DeleteVariables_MultipleVariables_DeletesOnlyExisting", () =>
-        {
-            _executor.Execute(@"
+        RunTest("DeleteVariables_MultipleVariables_DeletesOnlyExisting", () =>
+            {
+                _executor.Execute(@"
 x = 10
 y = 20
 z = 30
 ");
-            var deleted = _executor.DeleteVariables("x", "y", "non_existent");
+                var deleted = _executor.DeleteVariables("x", "y", "non_existent");
 
-            Assert.IsNotNull(deleted);
-            Assert.HasCount(2, deleted);
- CollectionAssert.Contains(deleted.ToList(), "x");
- CollectionAssert.Contains(deleted.ToList(), "y");
-            Assert.IsFalse(_executor.VariableExists("x"));
-        Assert.IsFalse(_executor.VariableExists("y"));
-     Assert.IsTrue(_executor.VariableExists("z"));
-   });
+                Assert.IsNotNull(deleted);
+                Assert.HasCount(2, deleted);
+                CollectionAssert.Contains(deleted.ToList(), "x");
+                CollectionAssert.Contains(deleted.ToList(), "y");
+                Assert.IsFalse(_executor.VariableExists("x"));
+                Assert.IsFalse(_executor.VariableExists("y"));
+                Assert.IsTrue(_executor.VariableExists("z"));
+            });
     }
 
     #endregion
@@ -352,7 +352,7 @@ z = 30
     {
         RunTest("ToDictionary_PythonDict_ConvertsToDotNetDictionary", () =>
         {
-    var code = @"
+            var code = @"
 result = {
     'name': 'John Doe',
     'age': 30,
@@ -363,14 +363,14 @@ result = {
             var dict = pyValue?.ToDictionary();
 
             Assert.IsNotNull(dict);
-        Assert.AreEqual("John Doe", dict["name"]);
-         Assert.AreEqual(30L, dict["age"]);
-          Assert.IsFalse((bool?)dict["isStudent"]);
+            Assert.AreEqual("John Doe", dict["name"]);
+            Assert.AreEqual(30L, dict["age"]);
+            Assert.IsFalse((bool?)dict["isStudent"]);
         });
 
-RunTest("ToDictionary_NestedDict_ConvertsNestedStructure", () =>
-        {
-         var code = @"
+        RunTest("ToDictionary_NestedDict_ConvertsNestedStructure", () =>
+                {
+                    var code = @"
 result = {
     'person': {
         'name': 'Alice',
@@ -382,86 +382,86 @@ result = {
     }
 }
 ";
-        using var pyValue = _executor.ExecuteAndCapture(code);
-        var dict = pyValue?.ToDictionary();
+                    using var pyValue = _executor.ExecuteAndCapture(code);
+                    var dict = pyValue?.ToDictionary();
 
-     Assert.IsNotNull(dict);
-       Assert.IsTrue(dict.ContainsKey("person"));
-        var person = dict["person"] as Dictionary<string, object?>;
-          Assert.IsNotNull(person);
-  Assert.AreEqual("Alice", person["name"]);
-        });
+                    Assert.IsNotNull(dict);
+                    Assert.IsTrue(dict.ContainsKey("person"));
+                    var person = dict["person"] as Dictionary<string, object?>;
+                    Assert.IsNotNull(person);
+                    Assert.AreEqual("Alice", person["name"]);
+                });
 
-    RunTest("ToDictionary_WithList_ConvertsListInDictionary", () =>
-        {
-var code = @"
+        RunTest("ToDictionary_WithList_ConvertsListInDictionary", () =>
+            {
+                var code = @"
 result = {
     'name': 'Project',
     'tags': ['python', 'dotnet', 'interop']
 }
 ";
-    using var pyValue = _executor.ExecuteAndCapture(code);
-      var dict = pyValue?.ToDictionary();
+                using var pyValue = _executor.ExecuteAndCapture(code);
+                var dict = pyValue?.ToDictionary();
 
-            Assert.IsNotNull(dict);
-            Assert.AreEqual("Project", dict["name"]);
-    var tags = dict["tags"] as List<object?>;
-      Assert.IsNotNull(tags);
-            Assert.HasCount(3, tags);
-          Assert.AreEqual("python", tags[0]);
-        });
+                Assert.IsNotNull(dict);
+                Assert.AreEqual("Project", dict["name"]);
+                var tags = dict["tags"] as List<object?>;
+                Assert.IsNotNull(tags);
+                Assert.HasCount(3, tags);
+                Assert.AreEqual("python", tags[0]);
+            });
 
         RunTest("ToList_PythonList_ConvertsToDotNetList", () =>
         {
-   var code = "result = [1, 2, 3, 4, 5]";
+            var code = "result = [1, 2, 3, 4, 5]";
 
-      using var pyValue = _executor.ExecuteAndCapture(code);
-          var list = pyValue?.ToList();
+            using var pyValue = _executor.ExecuteAndCapture(code);
+            var list = pyValue?.ToList();
 
             Assert.IsNotNull(list);
             Assert.HasCount(5, list);
-  Assert.AreEqual(1L, list[0]);
+            Assert.AreEqual(1L, list[0]);
             Assert.AreEqual(5L, list[4]);
         });
 
         RunTest("GetString_StringValue_ReturnsString", () =>
         {
-     var code = "result = 'Hello, World!'";
+            var code = "result = 'Hello, World!'";
 
-          using var pyValue = _executor.ExecuteAndCapture(code);
-  Assert.AreEqual("Hello, World!", pyValue?.GetString());
- });
+            using var pyValue = _executor.ExecuteAndCapture(code);
+            Assert.AreEqual("Hello, World!", pyValue?.GetString());
+        });
 
         RunTest("GetInt32_IntegerValue_ReturnsInteger", () =>
         {
             var code = "result = 42";
 
-      using var pyValue = _executor.ExecuteAndCapture(code);
-       Assert.AreEqual(42, pyValue?.GetInt32());
+            using var pyValue = _executor.ExecuteAndCapture(code);
+            Assert.AreEqual(42, pyValue?.GetInt32());
         });
 
-   RunTest("GetDouble_FloatValue_ReturnsDouble", () =>
-        {
-          var code = "result = 3.14159";
+        RunTest("GetDouble_FloatValue_ReturnsDouble", () =>
+             {
+                 var code = "result = 3.14159";
 
-            using var pyValue = _executor.ExecuteAndCapture(code);
+                 using var pyValue = _executor.ExecuteAndCapture(code);
 
-     var doubleValue = pyValue?.GetDouble();
-   Assert.IsNotNull(doubleValue);
-            Assert.AreEqual(3.14159, doubleValue.Value, 0.00001);
-  });
+                 var doubleValue = pyValue?.GetDouble();
+                 Assert.IsNotNull(doubleValue);
+                 Assert.AreEqual(3.14159, doubleValue.Value, 0.00001);
+             });
 
         RunTest("GetBoolean_BooleanValue_ReturnsBoolean", () =>
         {
-      var code1 = "result = True";
-        var code2 = "result = False";
+            var code1 = "result = True";
+            var code2 = "result = False";
 
-     using var pyValue1 = _executor.ExecuteAndCapture(code1);
+            using var pyValue1 = _executor.ExecuteAndCapture(code1);
             using var pyValue2 = _executor.ExecuteAndCapture(code2);
 
             Assert.IsTrue(pyValue1?.GetBoolean());
             Assert.IsFalse(pyValue2?.GetBoolean());
-      });
+        });
     }
 
     #endregion
@@ -472,70 +472,70 @@ result = {
     {
         RunTest("Execute_PythonRuntimeError_ThrowsException", () =>
 {
-            try
-            {
-     _executor.Execute("result = 1 / 0");
+    try
+    {
+        _executor.Execute("result = 1 / 0");
         Assert.Fail("Expected DotNetPyException was not thrown");
-            }
- catch (DotNetPyException)
-            {
-  // Expected exception
-      }
-        });
+    }
+    catch (DotNetPyException)
+    {
+        // Expected exception
+    }
+});
 
         RunTest("Execute_UndefinedVariable_ThrowsException", () =>
         {
-          try
+            try
             {
-           _executor.Execute("result = undefined_variable");
-           Assert.Fail("Expected DotNetPyException was not thrown");
+                _executor.Execute("result = undefined_variable");
+                Assert.Fail("Expected DotNetPyException was not thrown");
             }
             catch (DotNetPyException)
- {
-     // Expected exception
+            {
+                // Expected exception
             }
-        });
-    }
-
-  #endregion
-
-    #region GlobalVariableCleanupTests
-
-    private static void RunGlobalVariableCleanupTests()
-    {
-  RunTest("ClearGlobals_AfterExecute_RemovesUserVariables", () =>
-        {
-            _executor.Execute(@"
-x = 10
-y = 20
-z = 30
-");
- Assert.IsTrue(_executor.VariableExists("x"));
-
-      _executor.ClearGlobals();
-
-  Assert.IsFalse(_executor.VariableExists("x"));
-            Assert.IsFalse(_executor.VariableExists("y"));
-  Assert.IsFalse(_executor.VariableExists("z"));
         });
     }
 
     #endregion
 
-  #region ComplexScenarioTests
+    #region GlobalVariableCleanupTests
+
+    private static void RunGlobalVariableCleanupTests()
+    {
+        RunTest("ClearGlobals_AfterExecute_RemovesUserVariables", () =>
+              {
+                  _executor.Execute(@"
+x = 10
+y = 20
+z = 30
+");
+                  Assert.IsTrue(_executor.VariableExists("x"));
+
+                  _executor.ClearGlobals();
+
+                  Assert.IsFalse(_executor.VariableExists("x"));
+                  Assert.IsFalse(_executor.VariableExists("y"));
+                  Assert.IsFalse(_executor.VariableExists("z"));
+              });
+    }
+
+    #endregion
+
+    #region ComplexScenarioTests
 
     private static void RunComplexScenarioTests()
     {
         RunTest("ComplexScenario_DataProcessingPipeline_WorksCorrectly", () =>
         {
-      var salesData = new[]
-            {
+            var salesData = new[]
+                  {
     new { Product = "A", Sales = 100 },
        new { Product = "B", Sales = 200 },
    new { Product = "C", Sales = 150 }
     };
 
-     var code = @"
+            var code = @"
 total_sales = sum(item['Sales'] for item in sales_data)
 average_sales = total_sales / len(sales_data)
 result = {
@@ -549,32 +549,32 @@ result = {
      new Dictionary<string, object?> { { "sales_data", salesData } }
       );
 
-     Assert.IsNotNull(result);
+            Assert.IsNotNull(result);
             Assert.AreEqual(450.0, result.GetDouble("total"));
             Assert.AreEqual(150.0, result.GetDouble("average"));
-        Assert.AreEqual(3, result.GetInt32("count"));
-      });
+            Assert.AreEqual(3, result.GetInt32("count"));
+        });
 
         RunTest("ComplexScenario_MachineLearningSimulation_CalculatesCorrectly", () =>
         {
-     var features = new[] { 1.0, 2.0, 3.0, 4.0, 5.0 };
+            var features = new[] { 1.0, 2.0, 3.0, 4.0, 5.0 };
             var weights = new[] { 0.1, 0.2, 0.3, 0.4, 0.5 };
 
-        var code = @"
+            var code = @"
 result = sum(f * w for f, w in zip(features, weights))
 ";
-     using var result = _executor.ExecuteAndCapture(
-    code,
-      new Dictionary<string, object?> {
+            using var result = _executor.ExecuteAndCapture(
+           code,
+             new Dictionary<string, object?> {
              { "features", features },
 { "weights", weights }
-         });
+                });
 
- Assert.IsNotNull(result);
+            Assert.IsNotNull(result);
             // 1*0.1 + 2*0.2 + 3*0.3 + 4*0.4 + 5*0.5 = 5.5
             var resultValue = result.GetDouble();
-          Assert.IsNotNull(resultValue);
-        Assert.AreEqual(5.5, resultValue.Value, 0.0001);
+            Assert.IsNotNull(resultValue);
+            Assert.AreEqual(5.5, resultValue.Value, 0.0001);
         });
     }
 
@@ -583,7 +583,7 @@ result = sum(f * w for f, w in zip(features, weights))
     private sealed class TestResult
     {
         public string TestName { get; set; } = string.Empty;
-     public bool Passed { get; set; }
-      public string? ErrorMessage { get; set; }
+        public bool Passed { get; set; }
+        public string? ErrorMessage { get; set; }
     }
 }

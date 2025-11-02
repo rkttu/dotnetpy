@@ -9,15 +9,15 @@ public sealed class DisposePatternTests
     [ClassInitialize]
     public static void ClassInitialize(TestContext context)
     {
-  try
-     {
-   // Use automatic Python discovery
- Python.Initialize();
-     _executor = Python.GetInstance();
- }
-    catch (DotNetPyException ex)
-{
-  Assert.Inconclusive($"Python not found: {ex.Message}");
+        try
+        {
+            // Use automatic Python discovery
+            Python.Initialize();
+            _executor = Python.GetInstance();
+        }
+        catch (DotNetPyException ex)
+        {
+            Assert.Inconclusive($"Python not found: {ex.Message}");
         }
     }
 
@@ -95,19 +95,19 @@ y = 2
     [TestMethod]
     public void DotNetPyDictionary_UsingStatement_DisposesCorrectly()
     {
-     // Arrange
+        // Arrange
         _executor.Execute(@"
 a = 'apple'
 b = 'banana'
 c = 'cherry'
 ");
 
- // Act & Assert
+        // Act & Assert
         using (var dict = _executor.CaptureVariables("a", "b", "c"))
         {
-       Assert.AreEqual(3, dict.Count);
+            Assert.AreEqual(3, dict.Count);
             Assert.AreEqual("apple", dict["a"]?.GetString());
-   }
+        }
 
         // Dictionary is disposed after using block
     }
@@ -115,34 +115,34 @@ c = 'cherry'
     [TestMethod]
     public void DotNetPyExecutor_Dispose_ClearsGlobalVariables()
     {
- try
+        try
         {
-      // Arrange - Use auto-discovery
- var pythonInfo = PythonDiscovery.FindPython();
-if (pythonInfo == null)
-       Assert.Inconclusive("Python not found on system");
+            // Arrange - Use auto-discovery
+            var pythonInfo = PythonDiscovery.FindPython();
+            if (pythonInfo == null)
+                Assert.Inconclusive("Python not found on system");
 
-   var executor = DotNetPyExecutor.GetInstance(pythonInfo.LibraryPath);
- executor.Execute(@"
+            var executor = DotNetPyExecutor.GetInstance(pythonInfo.LibraryPath);
+            executor.Execute(@"
 dispose_test_var1 = 'value1'
 dispose_test_var2 = 'value2'
 ");
 
-   Assert.IsTrue(executor.VariableExists("dispose_test_var1"));
+            Assert.IsTrue(executor.VariableExists("dispose_test_var1"));
 
-    // Act - Clear globals manually instead of disposing
-   executor.ClearGlobals();
+            // Act - Clear globals manually instead of disposing
+            executor.ClearGlobals();
 
-// Assert - Variables should be cleaned up
-  Assert.IsFalse(executor.VariableExists("dispose_test_var1"));
-        Assert.IsFalse(executor.VariableExists("dispose_test_var2"));
-        var currentCount = DotNetPyExecutor.ReferenceCount;
-     Assert.IsGreaterThanOrEqualTo(0, currentCount);
-  }
- catch (DotNetPyException ex)
+            // Assert - Variables should be cleaned up
+            Assert.IsFalse(executor.VariableExists("dispose_test_var1"));
+            Assert.IsFalse(executor.VariableExists("dispose_test_var2"));
+            var currentCount = DotNetPyExecutor.ReferenceCount;
+            Assert.IsGreaterThanOrEqualTo(0, currentCount);
+        }
+        catch (DotNetPyException ex)
         {
-     Assert.Inconclusive($"Python test failed: {ex.Message}");
-   }
+            Assert.Inconclusive($"Python test failed: {ex.Message}");
+        }
     }
 
     [TestMethod]
@@ -179,27 +179,27 @@ inner_b = 20
     [TestMethod]
     public void ReferenceCount_Dispose_DecrementsCorrectly()
     {
-try
-  {
-        // This test verifies reference counting without actually disposing the shared instance
-    var pythonInfo = PythonDiscovery.FindPython();
-  if (pythonInfo == null)
-  Assert.Inconclusive("Python not found on system");
+        try
+        {
+            // This test verifies reference counting without actually disposing the shared instance
+            var pythonInfo = PythonDiscovery.FindPython();
+            if (pythonInfo == null)
+                Assert.Inconclusive("Python not found on system");
 
-        var initialCount = DotNetPyExecutor.ReferenceCount;
+            var initialCount = DotNetPyExecutor.ReferenceCount;
 
- // Getting the instance increments the reference count
-       var executor1 = DotNetPyExecutor.GetInstance(pythonInfo.LibraryPath);
-    var countAfterCreate = DotNetPyExecutor.ReferenceCount;
-  Assert.IsGreaterThan(initialCount, countAfterCreate);
+            // Getting the instance increments the reference count
+            var executor1 = DotNetPyExecutor.GetInstance(pythonInfo.LibraryPath);
+            var countAfterCreate = DotNetPyExecutor.ReferenceCount;
+            Assert.IsGreaterThan(initialCount, countAfterCreate);
 
-    // Note: We don't dispose here to avoid breaking other tests
-  // The reference count will be decremented when tests complete
-      Assert.IsGreaterThanOrEqualTo(1, countAfterCreate);
-    }
+            // Note: We don't dispose here to avoid breaking other tests
+            // The reference count will be decremented when tests complete
+            Assert.IsGreaterThanOrEqualTo(1, countAfterCreate);
+        }
         catch (DotNetPyException ex)
-  {
-  Assert.Inconclusive($"Python test failed: {ex.Message}");
-      }
+        {
+            Assert.Inconclusive($"Python test failed: {ex.Message}");
+        }
     }
 }

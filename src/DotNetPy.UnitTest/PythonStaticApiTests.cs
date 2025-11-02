@@ -10,13 +10,13 @@ public sealed class PythonStaticApiTests
     {
         try
         {
-   // Use automatic Python discovery
-     Python.Initialize();
-    }
- catch (DotNetPyException ex)
+            // Use automatic Python discovery
+            Python.Initialize();
+        }
+        catch (DotNetPyException ex)
         {
-     Assert.Inconclusive($"Python not found: {ex.Message}");
-   }
+            Assert.Inconclusive($"Python not found: {ex.Message}");
+        }
     }
 
     [TestInitialize]

@@ -45,17 +45,17 @@ public sealed class InitializationTests
     [TestMethod]
     public void Initialize_WithNullPath_ThrowsArgumentException()
     {
-      // Act & Assert
+        // Act & Assert
         try
         {
-    Python.Initialize((string)null!);
+            Python.Initialize((string)null!);
             Assert.Fail("Expected ArgumentException was not thrown");
- }
+        }
         catch (ArgumentException)
         {
-   // Expected exception
+            // Expected exception
         }
- }
+    }
     [TestMethod]
     public void Initialize_WithEmptyPath_ThrowsArgumentException()
     {
@@ -136,62 +136,54 @@ public sealed class InitializationTests
     public void GetInstance_MultipleCalls_ReturnsSameInstance()
     {
         try
-     {
- // Arrange - Use auto-discovery
-    var pythonInfo = PythonDiscovery.FindPython();
-      if (pythonInfo == null)
-       Assert.Inconclusive("Python not found on system");
+        {
+            // Arrange - Use auto-discovery
+            var pythonInfo = PythonDiscovery.FindPython();
+            if (pythonInfo == null)
+                Assert.Inconclusive("Python not found on system");
 
-    // Act
-  var instance1 = DotNetPyExecutor.GetInstance(pythonInfo.LibraryPath);
-    var instance2 = DotNetPyExecutor.GetInstance(pythonInfo.LibraryPath);
-       var instance3 = DotNetPyExecutor.GetInstance();
+            // Act
+            var instance1 = DotNetPyExecutor.GetInstance(pythonInfo.LibraryPath);
+            var instance2 = DotNetPyExecutor.GetInstance(pythonInfo.LibraryPath);
+            var instance3 = DotNetPyExecutor.GetInstance();
 
-   // Assert
-   Assert.AreSame(instance1, instance2);
-         Assert.AreSame(instance2, instance3);
-  }
-  catch (DotNetPyException ex)
-{
-    Assert.Inconclusive($"Python test failed: {ex.Message}");
-  }
-    }
-
-    [TestMethod]
-    public void GetInstance_WithDifferentPath_ThrowsInvalidOperationException()
-    {
-   // This test is not applicable with auto-discovery
-// Skip or mark as inconclusive
-        Assert.Inconclusive("Test requires multiple Python versions installed");
+            // Assert
+            Assert.AreSame(instance1, instance2);
+            Assert.AreSame(instance2, instance3);
+        }
+        catch (DotNetPyException ex)
+        {
+            Assert.Inconclusive($"Python test failed: {ex.Message}");
+        }
     }
 
     [TestMethod]
     public void ReferenceCount_AfterMultipleGetInstance_IncrementsCorrectly()
     {
         try
-   {
-      // Arrange - Use auto-discovery
-   var pythonInfo = PythonDiscovery.FindPython();
-      if (pythonInfo == null)
+        {
+            // Arrange - Use auto-discovery
+            var pythonInfo = PythonDiscovery.FindPython();
+            if (pythonInfo == null)
                 Assert.Inconclusive("Python not found on system");
 
-     // Get initial reference count
-  var initialCount = DotNetPyExecutor.ReferenceCount;
+            // Get initial reference count
+            var initialCount = DotNetPyExecutor.ReferenceCount;
 
- // Act
-   var instance1 = DotNetPyExecutor.GetInstance(pythonInfo.LibraryPath);
-    var countAfterFirst = DotNetPyExecutor.ReferenceCount;
+            // Act
+            var instance1 = DotNetPyExecutor.GetInstance(pythonInfo.LibraryPath);
+            var countAfterFirst = DotNetPyExecutor.ReferenceCount;
 
-var instance2 = DotNetPyExecutor.GetInstance();
-      var countAfterSecond = DotNetPyExecutor.ReferenceCount;
+            var instance2 = DotNetPyExecutor.GetInstance();
+            var countAfterSecond = DotNetPyExecutor.ReferenceCount;
 
-    // Assert
-  Assert.IsGreaterThanOrEqualTo(initialCount, countAfterFirst);
-       Assert.IsGreaterThan(countAfterFirst, countAfterSecond);
-      }
- catch (DotNetPyException ex)
+            // Assert
+            Assert.IsGreaterThanOrEqualTo(initialCount, countAfterFirst);
+            Assert.IsGreaterThan(countAfterFirst, countAfterSecond);
+        }
+        catch (DotNetPyException ex)
         {
-       Assert.Inconclusive($"Python test failed: {ex.Message}");
+            Assert.Inconclusive($"Python test failed: {ex.Message}");
         }
     }
 }

@@ -12,7 +12,7 @@ public sealed class PythonInfo
 
     /// <summary>
     /// Gets the path to the Python shared library (e.g., python313.dll, libpython3.13.so).
-  /// </summary>
+    /// </summary>
     public required string LibraryPath { get; init; }
 
     /// <summary>
@@ -67,7 +67,7 @@ public enum PythonSource
     /// <summary>
     /// Found via standard installation paths.
     /// </summary>
-StandardPath = 40,
+    StandardPath = 40,
 
     /// <summary>
     /// Provided by user explicitly.
@@ -85,7 +85,7 @@ public enum Architecture
     /// </summary>
     Unknown = 0,
 
-/// <summary>
+    /// <summary>
     /// x86 (32-bit Intel/AMD).
     /// </summary>
     X86 = 32,
@@ -96,12 +96,12 @@ public enum Architecture
     X64 = 64,
 
     /// <summary>
-  /// ARM (32-bit).
+    /// ARM (32-bit).
     /// </summary>
     Arm = 33,
 
     /// <summary>
     /// ARM64 (64-bit).
- /// </summary>
+    /// </summary>
     Arm64 = 65
 }

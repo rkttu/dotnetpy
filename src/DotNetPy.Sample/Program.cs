@@ -1,4 +1,7 @@
 using DotNetPy;
+using System.Text;
+
+Console.OutputEncoding = new UTF8Encoding(false);
 
 // ====================================================================
 // Automatic Python Discovery
@@ -10,7 +13,7 @@ try
     // Option 1: Automatic discovery (simplest - finds the best Python automatically)
     Python.Initialize();
     Console.WriteLine("✓ Python initialized with automatic discovery");
-    
+
     // You can also specify requirements:
     // Python.Initialize(new PythonDiscoveryOptions 
     // { 
