@@ -33,7 +33,7 @@ public sealed partial class DotNetPyExecutor : IDisposable
     private static IntPtr _libraryHandle = IntPtr.Zero;
     private volatile bool _disposed = false;
 
-    // Python C API 함수 포인터 델리게이트
+    // Python C API function pointer delegates
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void PyInitializeDelegate();
 
@@ -117,7 +117,7 @@ public sealed partial class DotNetPyExecutor : IDisposable
         IntPtr arg1,
         IntPtr sentinel);
 
-    // 함수 포인터 인스턴스
+    // Function pointer instances
     private static PyInitializeDelegate? _pyInitialize;
     private static PyFinalizeDelegate? _pyFinalize;
     private static PyIsInitializedDelegate? _pyIsInitialized;
@@ -576,11 +576,11 @@ _is_valid = '{EscapePythonString(name)}'.isidentifier() and not keyword.iskeywor
                 break;
 
             default:
-                // 익명 타입 및 일반 객체를 리플렉션으로 직렬화
+                // Serialize anonymous types and general objects using reflection
                 var type = value.GetType();
                 if (type.Namespace == null || type.Name.Contains("AnonymousType"))
                 {
-                    // 익명 타입 처리
+                    // Handle anonymous types
                     writer.WriteStartObject();
                     foreach (var prop in type.GetProperties())
                     {
@@ -591,7 +591,7 @@ _is_valid = '{EscapePythonString(name)}'.isidentifier() and not keyword.iskeywor
                 }
                 else
                 {
-                    // 일반 객체를 리플렉션으로 직렬화
+                    // Serialize general objects using reflection
                     writer.WriteStartObject();
                     foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
                     {
@@ -876,6 +876,11 @@ _existing_vars = [v for v in [{checkList}] if v in globals()]
         }
     }
 
+    /// <summary>
+    /// Captures the value of a specific global variable.
+    /// </summary>
+    /// <param name="variableName">The name of the variable to capture.</param>
+    /// <returns>A <see cref="DotNetPyValue"/> containing the variable's value, or null if the variable does not exist.</returns>
     public DotNetPyValue? CaptureVariable(string variableName)
     {
         var doc = CaptureVariableInternal(variableName);
@@ -1359,6 +1364,7 @@ for v in [{checkList}]:
         try
         {
             Execute(deleteCode);
+
             using var doc = CaptureVariableInternal("_deleted_vars");
 
             if (doc == null)
@@ -1452,7 +1458,7 @@ del _to_delete
 
             Interlocked.Decrement(ref _referenceCount);
 
-            // 마지막 참조가 해제되면 전역 변수 정리
+            // Clean up global variables when the last reference is released
             if (_referenceCount == 0)
             {
                 try

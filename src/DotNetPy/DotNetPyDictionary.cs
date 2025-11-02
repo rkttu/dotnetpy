@@ -44,6 +44,9 @@ public sealed class DotNetPyDictionary : IDisposable
     /// </summary>
     public int Count => _variables.Count;
 
+    /// <summary>
+    /// Releases all resources used by the dictionary and disposes all contained values.
+    /// </summary>
     public void Dispose()
     {
         if (_disposed)

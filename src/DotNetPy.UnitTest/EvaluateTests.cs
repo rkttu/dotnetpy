@@ -3,7 +3,7 @@ namespace DotNetPy.UnitTest;
 [TestClass]
 public sealed class EvaluateTests
 {
-    // 기본 실행 및 평가 테스트
+    // Basic execution and evaluation tests
     private static DotNetPyExecutor _executor = default!;
 
     [ClassInitialize]
@@ -24,7 +24,7 @@ public sealed class EvaluateTests
     [TestInitialize]
     public void TestInitialize()
     {
-        // 각 테스트 전에 전역 변수 정리
+        // Clear global variables before each test
         _executor.ClearGlobals();
     }
 

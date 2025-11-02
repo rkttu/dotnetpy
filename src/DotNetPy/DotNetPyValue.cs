@@ -16,6 +16,11 @@ public sealed class DotNetPyValue : IDisposable
         _doc = doc;
     }
 
+    /// <summary>
+    /// Gets the string value at the specified path.
+    /// </summary>
+    /// <param name="path">The property path (dot-separated). Empty string returns the root value.</param>
+    /// <returns>The string value, or null if not found or not a string.</returns>
     public string? GetString(string path = "")
     {
         if (TryGetProperty(path, out var element))
@@ -25,6 +30,11 @@ public sealed class DotNetPyValue : IDisposable
         return null;
     }
 
+    /// <summary>
+    /// Gets the 32-bit integer value at the specified path.
+    /// </summary>
+    /// <param name="path">The property path (dot-separated). Empty string returns the root value.</param>
+    /// <returns>The integer value, or null if not found or not an integer.</returns>
     public int? GetInt32(string path = "")
     {
         if (TryGetProperty(path, out var element) &&
@@ -35,6 +45,11 @@ public sealed class DotNetPyValue : IDisposable
         return null;
     }
 
+    /// <summary>
+    /// Gets the double-precision floating-point value at the specified path.
+    /// </summary>
+    /// <param name="path">The property path (dot-separated). Empty string returns the root value.</param>
+    /// <returns>The double value, or null if not found or not a number.</returns>
     public double? GetDouble(string path = "")
     {
         if (TryGetProperty(path, out var element) &&
@@ -45,6 +60,11 @@ public sealed class DotNetPyValue : IDisposable
         return null;
     }
 
+    /// <summary>
+    /// Gets the boolean value at the specified path.
+    /// </summary>
+    /// <param name="path">The property path (dot-separated). Empty string returns the root value.</param>
+    /// <returns>The boolean value, or null if not found or not a boolean.</returns>
     public bool? GetBoolean(string path = "")
     {
         if (TryGetProperty(path, out var element))
@@ -55,6 +75,11 @@ public sealed class DotNetPyValue : IDisposable
         return null;
     }
 
+    /// <summary>
+    /// Gets the JSON element at the specified path.
+    /// </summary>
+    /// <param name="path">The property path (dot-separated).</param>
+    /// <returns>The JSON element, or null if not found.</returns>
     public JsonElement? GetProperty(string path)
     {
         if (TryGetProperty(path, out var element))
@@ -64,6 +89,10 @@ public sealed class DotNetPyValue : IDisposable
         return null;
     }
 
+    /// <summary>
+    /// Converts the Python dictionary to a .NET Dictionary.
+    /// </summary>
+    /// <returns>A Dictionary representation, or null if the value is not an object.</returns>
     public Dictionary<string, object?>? ToDictionary()
     {
         if (_doc.RootElement.ValueKind != JsonValueKind.Object)
@@ -73,6 +102,10 @@ public sealed class DotNetPyValue : IDisposable
         return ToObject(_doc.RootElement) as Dictionary<string, object?>;
     }
 
+    /// <summary>
+    /// Converts the Python list to a .NET list.
+    /// </summary>
+    /// <returns>A list representation, or null if the value is not an array.</returns>
     public IReadOnlyList<object?>? ToList()
     {
         if (_doc.RootElement.ValueKind != JsonValueKind.Array)
@@ -149,6 +182,9 @@ public sealed class DotNetPyValue : IDisposable
         return true;
     }
 
+    /// <summary>
+    /// Releases the resources used by this instance.
+    /// </summary>
     public void Dispose()
     {
         if (!_disposed)

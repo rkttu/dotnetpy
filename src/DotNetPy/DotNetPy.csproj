@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<OutputType>Library</OutputType>
@@ -7,6 +7,68 @@
 		<Nullable>enable</Nullable>
 		<PublishAot>true</PublishAot>
 		<InvariantGlobalization>true</InvariantGlobalization>
+		<LangVersion>latest</LangVersion>
 	</PropertyGroup>
+
+	<!-- NuGet Package Metadata -->
+	<PropertyGroup>
+		<PackageId>DotNetPy</PackageId>
+		<Version>0.1.0-preview</Version>
+		<Authors>rkttu</Authors>
+		<Company>rkttu</Company>
+		<Product>DotNetPy</Product>
+		<Description>A lightweight .NET library for seamless Python interoperability with zero boilerplate, Native AOT support, and automatic Python discovery. Execute Python code, evaluate expressions, and exchange data between .NET and Python with minimal learning curve.</Description>
+		<PackageTags>python;interop;csharp;dotnet;scripting;python-integration;native-aot;aot-friendly;python-executor</PackageTags>
+		<PackageProjectUrl>https://github.com/rkttu/dotnetpy</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/rkttu/dotnetpy</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+		<PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<Copyright>Copyright (c) 2024 rkttu</Copyright>
+		<PackageReleaseNotes>
+### Version 0.1.0-preview
+
+**⚠️ EXPERIMENTAL RELEASE**
+
+This is an experimental preview release. APIs may change without notice.
+
+**Features:**
+- ✅ Zero Boilerplate Python execution
+- ✅ Native AOT friendly design
+- ✅ Automatic Python discovery (cross-platform)
+- ✅ Execute Python code and evaluate expressions
+- ✅ Bidirectional data marshaling
+- ✅ Variable management (capture, delete, check existence)
+- ✅ Thread-safe execution (via Python GIL)
+
+**Supported Platforms:**
+- Windows (x64, x86, ARM64)
+- Linux (x64, ARM64)
+- macOS (x64, ARM64)
+
+**Requirements:**
+- .NET 8.0 or later
+- Python 3.8+ installation
+
+For stable production use, consider [Python.NET (pythonnet)](https://github.com/pythonnet/pythonnet).
+
+See full documentation at: https://github.com/rkttu/dotnetpy
+		</PackageReleaseNotes>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<PublishRepositoryUrl>true</PublishRepositoryUrl>
+		<EmbedUntrackedSources>true</EmbedUntrackedSources>
+		<IncludeSymbols>true</IncludeSymbols>
+		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
+	</PropertyGroup>
+
+	<!-- Include README in package -->
+	<ItemGroup>
+		<None Include="..\..\README.md" Pack="true" PackagePath="\" />
+	</ItemGroup>
+
+	<!-- Source Link for debugging -->
+	<ItemGroup>
+		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
+	</ItemGroup>
 
 </Project>

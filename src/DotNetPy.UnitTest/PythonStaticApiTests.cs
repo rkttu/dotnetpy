@@ -3,7 +3,7 @@ namespace DotNetPy.UnitTest;
 [TestClass]
 public sealed class PythonStaticApiTests
 {
-    // Python 정적 클래스 API 테스트
+    // Python static class API tests
 
     [ClassInitialize]
     public static void ClassInitialize(TestContext context)

@@ -40,6 +40,10 @@ public sealed class PythonInfo
     /// </summary>
     public string? HomeDirectory { get; init; }
 
+    /// <summary>
+    /// Returns a string representation of the Python installation information.
+    /// </summary>
+    /// <returns>A formatted string containing version, architecture, source, and path information.</returns>
     public override string ToString()
         => $"Python {Version} ({Architecture}) from {Source} at {ExecutablePath}";
 }
