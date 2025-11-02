@@ -1,3 +1,6 @@
+using System.Collections;
+using System.Diagnostics;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Encodings.Web;
@@ -186,11 +189,18 @@ public sealed partial class DotNetPyExecutor : IDisposable
                 return _instance;
             }
 
+            // Validate library path first (before checking if already initialized with different path)
+            // This ensures invalid paths throw DotNetPyException instead of InvalidOperationException
+            if (libraryPath != null)
+            {
+                ValidateLibraryPath(libraryPath);
+            }
+
             // Validate if already initialized with a different path.
             if (libraryPath != null && _initializedLibraryPath != null &&
                 !string.Equals(libraryPath, _initializedLibraryPath, StringComparison.OrdinalIgnoreCase))
             {
-                throw new InvalidOperationException(
+                throw new DotNetPyException(
                     $"The Python runtime has already been initialized with a different path. " +
                     $"Initialized path: {_initializedLibraryPath}, Requested path: {libraryPath}");
             }
@@ -212,6 +222,16 @@ public sealed partial class DotNetPyExecutor : IDisposable
                 return _referenceCount;
             }
         }
+    }
+
+    /// <summary>
+    /// Validates the library path without actually loading it.
+    /// </summary>
+    private static void ValidateLibraryPath(string libraryPath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(libraryPath, nameof(libraryPath));
+        if (!File.Exists(libraryPath))
+            throw new DotNetPyException($"The specified Python library does not exist: {libraryPath}", new FileNotFoundException(libraryPath));
     }
 
     /// <summary>
@@ -245,6 +265,8 @@ public sealed partial class DotNetPyExecutor : IDisposable
         if (_libraryHandle != IntPtr.Zero)
             return;
 
+        // Validation is already done in ValidateLibraryPath() called from GetInstance()
+        // But we still need to check here for safety
         ArgumentException.ThrowIfNullOrWhiteSpace(libraryPath, nameof(libraryPath));
         if (!File.Exists(libraryPath))
             throw new DotNetPyException($"The specified Python library does not exist: {libraryPath}", new FileNotFoundException(libraryPath));
@@ -256,7 +278,12 @@ public sealed partial class DotNetPyExecutor : IDisposable
         catch (DllNotFoundException ex)
         {
             throw new DotNetPyException(
-                $"Could not find the Python library: {libraryPath}", ex);
+       $"Could not find the Python library: {libraryPath}", ex);
+        }
+        catch (BadImageFormatException ex)
+        {
+            throw new DotNetPyException(
+                   $"The specified file is not a valid Python library: {libraryPath}", ex);
         }
 
         // Load function pointers
@@ -387,9 +414,20 @@ _is_valid = '{EscapePythonString(name)}'.isidentifier() and not keyword.iskeywor
         // Normalize indentation
         code = NormalizePythonCode(code);
 
-        int result = _pyRunSimpleString!(code);
+        // Get the globals dictionary of the __main__ module
+        using var mainModule = DotNetPyObject.FromBorrowedReference(_pyImportAddModule!("__main__"));
+        if (mainModule == null || mainModule.IsInvalid)
+        {
+            throw new DotNetPyException("Could not get the __main__ module.");
+        }
 
-        if (result != 0)
+        IntPtr globals = _pyModuleGetDict!(mainModule.DangerousGetHandle()); // borrowed reference
+        IntPtr locals = globals;
+
+        // Execute the code using PyRun_String to preserve error information
+        using var result = DotNetPyObject.FromNewReference(_pyRunString!(code, Py_file_input, globals, locals));
+
+        if (result == null || result.IsInvalid)
         {
             string? errorMessage = GetPythonError();
             throw new DotNetPyException(
@@ -426,9 +464,20 @@ _is_valid = '{EscapePythonString(name)}'.isidentifier() and not keyword.iskeywor
         // Combine with user code
         string fullCode = variableCode.ToString() + "\n" + NormalizePythonCode(code);
 
-        int result = _pyRunSimpleString!(fullCode);
+        // Get the globals dictionary of the __main__ module
+        using var mainModule = DotNetPyObject.FromBorrowedReference(_pyImportAddModule!("__main__"));
+        if (mainModule == null || mainModule.IsInvalid)
+        {
+            throw new DotNetPyException("Could not get the __main__ module.");
+        }
 
-        if (result != 0)
+        IntPtr globals = _pyModuleGetDict!(mainModule.DangerousGetHandle()); // borrowed reference
+        IntPtr locals = globals;
+
+        // Execute the code using PyRun_String to preserve error information
+        using var result = DotNetPyObject.FromNewReference(_pyRunString!(fullCode, Py_file_input, globals, locals));
+
+        if (result == null || result.IsInvalid)
         {
             string? errorMessage = GetPythonError();
             throw new DotNetPyException(
@@ -475,7 +524,11 @@ _is_valid = '{EscapePythonString(name)}'.isidentifier() and not keyword.iskeywor
                 writer.WriteBooleanValue(b);
                 break;
 
-            case byte or sbyte or short or ushort or int or uint or long or ulong:
+            case ulong ul:
+                writer.WriteNumberValue(ul);
+                break;
+
+            case byte or sbyte or short or ushort or int or uint or long:
                 writer.WriteNumberValue(Convert.ToInt64(value));
                 break;
 
@@ -503,9 +556,9 @@ _is_valid = '{EscapePythonString(name)}'.isidentifier() and not keyword.iskeywor
                 writer.WriteStringValue(guid.ToString());
                 break;
 
-            case System.Collections.IDictionary dict:
+            case IDictionary dict:
                 writer.WriteStartObject();
-                foreach (System.Collections.DictionaryEntry entry in dict)
+                foreach (DictionaryEntry entry in dict)
                 {
                     writer.WritePropertyName(entry.Key.ToString() ?? string.Empty);
                     WriteJsonValue(writer, entry.Value);
@@ -513,7 +566,7 @@ _is_valid = '{EscapePythonString(name)}'.isidentifier() and not keyword.iskeywor
                 writer.WriteEndObject();
                 break;
 
-            case System.Collections.IEnumerable enumerable when value is not string:
+            case IEnumerable enumerable when value is not string:
                 writer.WriteStartArray();
                 foreach (var item in enumerable)
                 {
@@ -540,7 +593,7 @@ _is_valid = '{EscapePythonString(name)}'.isidentifier() and not keyword.iskeywor
                 {
                     // 일반 객체를 리플렉션으로 직렬화
                     writer.WriteStartObject();
-                    foreach (var prop in type.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+                    foreach (var prop in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
                     {
                         writer.WritePropertyName(prop.Name);
                         WriteJsonValue(writer, prop.GetValue(value));
@@ -1361,7 +1414,7 @@ del _to_delete
         catch (Exception ex)
         {
             // Logging (using ILogger is recommended in actual production)
-            System.Diagnostics.Debug.WriteLine($"Failed to clean up temporary variable '{variableName}': {ex.Message}");
+            Debug.WriteLine($"Failed to clean up temporary variable '{variableName}': {ex.Message}");
         }
     }
 
@@ -1409,7 +1462,7 @@ del _to_delete
                 catch (Exception ex)
                 {
                     // Logging (using ILogger is recommended in actual production)
-                    System.Diagnostics.Debug.WriteLine($"Failed to clear global variables: {ex.Message}");
+                    Debug.WriteLine($"Failed to clear global variables: {ex.Message}");
                 }
             }
 
