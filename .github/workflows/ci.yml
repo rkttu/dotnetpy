@@ -1,0 +1,55 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Restore dependencies
+      run: dotnet restore src/DotNetPy.slnx
+
+    - name: Build
+      run: dotnet build src/DotNetPy.slnx --configuration Release --no-restore
+
+    - name: Test
+      run: dotnet test src/DotNetPy.slnx --configuration Release --no-build --verbosity normal
+
+    - name: Pack NuGet package
+      if: matrix.os == 'ubuntu-latest'
+      run: dotnet pack src/DotNetPy/DotNetPy.csproj --configuration Release --no-build --output ./artifacts
+
+    - name: Upload NuGet package
+      if: matrix.os == 'ubuntu-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: nuget-package
+        path: |
+          ./artifacts/*.nupkg
+          ./artifacts/*.snupkg
+        if-no-files-found: error
