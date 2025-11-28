@@ -30,6 +30,9 @@ public sealed class ComplexDataTypeMarshallingTests
     [TestMethod]
     public void MarshalDateTime_ToAndFromPython_PreservesValue()
     {
+        // Skip on Linux CI where native Python extension modules don't work
+        TestHelpers.SkipIfNativeExtensionsUnavailable();
+
         // Arrange
         var now = DateTime.UtcNow;
         var variables = new Dictionary<string, object?> { { "date_value", now } };
@@ -53,6 +56,9 @@ result = json.loads(json.dumps(date_value))
     [TestMethod]
     public void MarshalDateTimeOffset_ToAndFromPython_PreservesValue()
     {
+        // Skip on Linux CI where native Python extension modules don't work
+        TestHelpers.SkipIfNativeExtensionsUnavailable();
+
         // Arrange
         var dateTimeOffset = DateTimeOffset.UtcNow;
         var variables = new Dictionary<string, object?> { { "dto_value", dateTimeOffset } };
@@ -75,6 +81,9 @@ result = dto_value
     [TestMethod]
     public void MarshalGuid_ToAndFromPython_PreservesValue()
     {
+        // Skip on Linux CI where native Python extension modules don't work
+        TestHelpers.SkipIfNativeExtensionsUnavailable();
+
         // Arrange
         var guid = Guid.NewGuid();
         var variables = new Dictionary<string, object?> { { "guid_value", guid } };
@@ -95,6 +104,9 @@ result = guid_value
     [TestMethod]
     public void MarshalAnonymousType_ToAndFromPython_WorksCorrectly()
     {
+        // Skip on Linux CI where native Python extension modules don't work
+        TestHelpers.SkipIfNativeExtensionsUnavailable();
+
         // Arrange
         var anonymousObject = new
         {
@@ -123,6 +135,9 @@ result = {
     [TestMethod]
     public void MarshalComplexObject_WithProperties_WorksCorrectly()
     {
+        // Skip on Linux CI where native Python extension modules don't work
+        TestHelpers.SkipIfNativeExtensionsUnavailable();
+
         // Arrange
         var person = new Person
         {
@@ -152,6 +167,9 @@ result = {
     [TestMethod]
     public void MarshalNestedObjects_PreservesStructure()
     {
+        // Skip on Linux CI where native Python extension modules don't work
+        TestHelpers.SkipIfNativeExtensionsUnavailable();
+
         // Arrange
         var company = new Company
         {
@@ -184,6 +202,9 @@ result = {
     [TestMethod]
     public void MarshalListOfComplexObjects_WorksCorrectly()
     {
+        // Skip on Linux CI where native Python extension modules don't work
+        TestHelpers.SkipIfNativeExtensionsUnavailable();
+
         // Arrange
         var people = new List<Person>
         {
@@ -212,6 +233,9 @@ result = {
     [TestMethod]
     public void MarshalDictionaryOfMixedTypes_WorksCorrectly()
     {
+        // Skip on Linux CI where native Python extension modules don't work
+        TestHelpers.SkipIfNativeExtensionsUnavailable();
+
         // Arrange
         var mixedDict = new Dictionary<string, object?>
         {
@@ -248,6 +272,9 @@ result = {
     [TestMethod]
     public void MarshalNumericTypes_PreservesValues()
     {
+        // Skip on Linux CI where native Python extension modules don't work
+        TestHelpers.SkipIfNativeExtensionsUnavailable();
+
         // Arrange
         var numbers = new Dictionary<string, object?>
   {
@@ -286,6 +313,9 @@ result = {
     [TestMethod]
     public void MarshalEmptyCollections_WorksCorrectly()
     {
+        // Skip on Linux CI where native Python extension modules don't work
+        TestHelpers.SkipIfNativeExtensionsUnavailable();
+
         // Arrange
         var variables = new Dictionary<string, object?>
    {

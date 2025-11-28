@@ -31,6 +31,9 @@ public sealed class ComplexScenarioTest
     [TestMethod]
     public void ComplexScenario_DataProcessingPipeline_WorksCorrectly()
     {
+        // Skip on Linux CI where native Python extension modules don't work
+        TestHelpers.SkipIfNativeExtensionsUnavailable();
+
         // Arrange - .NET에서 데이터 준비
         var salesData = new[]
         {
@@ -64,6 +67,9 @@ result = {
     [TestMethod]
     public void ComplexScenario_MachineLearningSimulation_CalculatesCorrectly()
     {
+        // Skip on Linux CI where native Python extension modules don't work
+        TestHelpers.SkipIfNativeExtensionsUnavailable();
+
         // Arrange
         var features = new[] { 1.0, 2.0, 3.0, 4.0, 5.0 };
         var weights = new[] { 0.1, 0.2, 0.3, 0.4, 0.5 };

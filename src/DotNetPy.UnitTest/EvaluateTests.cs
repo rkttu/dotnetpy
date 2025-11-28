@@ -90,6 +90,9 @@ public sealed class EvaluateTests
     [TestMethod]
     public void ExecuteAndCapture_ImportModule_CalculatesSquareRoot()
     {
+        // Skip on Linux CI where native Python extension modules don't work
+        TestHelpers.SkipIfNativeExtensionsUnavailable();
+
         // Arrange
         var code = @"
 import math

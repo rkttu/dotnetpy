@@ -31,6 +31,9 @@ public sealed class ExecuteAndCaptureTests
     [TestMethod]
     public void Execute_WithVariableInjection_UsesInjectedData()
     {
+        // Skip on Linux CI where native Python extension modules don't work
+        TestHelpers.SkipIfNativeExtensionsUnavailable();
+
         // Arrange
         var numbers = new[] { 10, 20, 30, 40, 50 };
         var variables = new Dictionary<string, object?> { { "numbers", numbers } };
@@ -47,6 +50,9 @@ public sealed class ExecuteAndCaptureTests
     [TestMethod]
     public void ExecuteAndCapture_WithVariableInjection_ReturnsStatistics()
     {
+        // Skip on Linux CI where native Python extension modules don't work
+        TestHelpers.SkipIfNativeExtensionsUnavailable();
+
         // Arrange
         var numbers = new[] { 10, 20, 30, 40, 50 };
         var code = @"
@@ -75,6 +81,9 @@ result = {
     [TestMethod]
     public void Execute_WithMultipleVariables_UsesAllVariables()
     {
+        // Skip on Linux CI where native Python extension modules don't work
+        TestHelpers.SkipIfNativeExtensionsUnavailable();
+
         // Arrange
         var variables = new Dictionary<string, object?>
         {

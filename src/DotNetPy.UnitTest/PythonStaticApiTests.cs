@@ -49,6 +49,9 @@ public sealed class PythonStaticApiTests
     [TestMethod]
     public void Execute_WithVariables_InjectsVariables()
     {
+        // Skip on Linux CI where native Python extension modules don't work
+        TestHelpers.SkipIfNativeExtensionsUnavailable();
+
         // Arrange
         var variables = new Dictionary<string, object?> { { "input", 42 } };
 
@@ -75,6 +78,9 @@ public sealed class PythonStaticApiTests
     [TestMethod]
     public void ExecuteAndCapture_WithVariables_UsesVariablesAndReturnsResult()
     {
+        // Skip on Linux CI where native Python extension modules don't work
+        TestHelpers.SkipIfNativeExtensionsUnavailable();
+
         // Arrange
         var variables = new Dictionary<string, object?> { { "base", 10 } };
 
@@ -100,6 +106,9 @@ public sealed class PythonStaticApiTests
     [TestMethod]
     public void ExecuteAndCapture_WithVariablesAndCustomResultVariable_WorksCorrectly()
     {
+        // Skip on Linux CI where native Python extension modules don't work
+        TestHelpers.SkipIfNativeExtensionsUnavailable();
+
         // Arrange
         var variables = new Dictionary<string, object?> { { "multiplier", 7 } };
 

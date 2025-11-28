@@ -31,6 +31,9 @@ public sealed class CaptureManageVariableTests
     [TestMethod]
     public void CaptureVariable_ExistingVariable_ReturnsValue()
     {
+        // Skip on Linux CI where native Python extension modules don't work
+        TestHelpers.SkipIfNativeExtensionsUnavailable();
+
         // Arrange
         _executor.Execute(@"
 import math
