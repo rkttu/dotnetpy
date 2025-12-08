@@ -1,4 +1,6 @@
 <Solution>
+  <Project Path="DotNetPy.Native.Shared/DotNetPy.Native.Shared.csproj" />
+  <Project Path="DotNetPy.Native.Static/DotNetPy.Native.Static.csproj" />
   <Project Path="DotNetPy.Sample/DotNetPy.Sample.csproj" Id="4a18882c-3028-4c7c-b1b1-37c8ae456641" />
   <Project Path="DotNetPy.UnitTest/DotNetPy.UnitTest.csproj" Id="d9c9ee3a-0e65-47f5-95d3-6ec49d4b21cf" />
   <Project Path="DotNetPy/DotNetPy.csproj" />

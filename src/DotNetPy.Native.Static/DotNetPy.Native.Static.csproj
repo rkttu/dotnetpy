@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		
+		<!-- Native AOT Static Library Output -->
+		<PublishAot>true</PublishAot>
+		<NativeLib>Static</NativeLib>
+		<InvariantGlobalization>true</InvariantGlobalization>
+		
+		<!-- Output naming -->
+		<AssemblyName>dotnetpy-native-static</AssemblyName>
+		
+		<!-- DNNE: Auto-generate C header file -->
+		<DnneGenerateExports>true</DnneGenerateExports>
+		<DnneBuildExports>false</DnneBuildExports>
+	</PropertyGroup>
+
+	<!-- NuGet Package Metadata -->
+	<PropertyGroup>
+		<PackageId>DotNetPy.Native.Static</PackageId>
+		<Version>0.1.0-preview</Version>
+		<Authors>rkttu</Authors>
+		<Company>rkttu</Company>
+		<Product>DotNetPy Native Static Library</Product>
+		<Description>Native static library (.lib/.a) build of DotNetPy for C/C++ interoperability. Exposes DotNetPy functionality through C-compatible exports for static linking scenarios.</Description>
+		<PackageTags>python;interop;native;static-library;ffi;c-api;dotnet;native-aot;embedded</PackageTags>
+		<PackageProjectUrl>https://github.com/rkttu/dotnetpy</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/rkttu/dotnetpy</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+		<PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+		<Copyright>Copyright (c) 2024 rkttu</Copyright>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\DotNetPy\DotNetPy.csproj" />
+	</ItemGroup>
+
+	<!-- Share NativeExports.cs from Shared project -->
+	<ItemGroup>
+		<Compile Include="..\DotNetPy.Native.Shared\NativeExports.cs" Link="NativeExports.cs" />
+	</ItemGroup>
+
+	<!-- DNNE for C header generation -->
+	<ItemGroup>
+		<PackageReference Include="DNNE" Version="2.0.8" />
+	</ItemGroup>
+
+</Project>

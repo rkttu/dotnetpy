@@ -17,6 +17,20 @@ public sealed class DotNetPyValue : IDisposable
     }
 
     /// <summary>
+    /// Gets the underlying JsonDocument's RootElement.
+    /// </summary>
+    public JsonElement RootElement => _doc.RootElement;
+
+    /// <summary>
+    /// Converts the value to its JSON string representation.
+    /// </summary>
+    /// <returns>The JSON string representation of this value.</returns>
+    public string ToJsonString()
+    {
+        return _doc.RootElement.GetRawText();
+    }
+
+    /// <summary>
     /// Gets the string value at the specified path.
     /// </summary>
     /// <param name="path">The property path (dot-separated). Empty string returns the root value.</param>
