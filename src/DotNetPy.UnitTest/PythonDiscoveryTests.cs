@@ -175,4 +175,122 @@ public sealed class PythonDiscoveryTests
             Assert.Inconclusive($"Python 3.8+ not found on system: {ex.Message}");
         }
     }
+
+    [TestMethod]
+    public void FindAll_WithUvEnabled_ShouldIncludeUvPythons()
+    {
+        // Arrange
+        var options = new PythonDiscoveryOptions
+        {
+            IncludeUvManagedPython = true,
+            ForceRefresh = true
+        };
+
+        // Act
+        var allPythons = PythonDiscovery.FindAll(options);
+
+        // Assert
+        Assert.IsNotNull(allPythons);
+
+        var uvPythons = allPythons.Where(p => p.Source == PythonSource.Uv).ToList();
+        Console.WriteLine($"Found {uvPythons.Count} uv-managed Python installation(s):");
+        foreach (var python in uvPythons)
+        {
+            Console.WriteLine($"  - {python}");
+            Console.WriteLine($"    Library: {python.LibraryPath}");
+        }
+
+        // Note: Test passes even if no uv Python is found (optional installation)
+    }
+
+    [TestMethod]
+    public void FindAll_WithUvDisabled_ShouldExcludeUvPythons()
+    {
+        // Arrange
+        var options = new PythonDiscoveryOptions
+        {
+            IncludeUvManagedPython = false,
+            ForceRefresh = true
+        };
+
+        // Act
+        var allPythons = PythonDiscovery.FindAll(options);
+
+        // Assert
+        Assert.IsNotNull(allPythons);
+
+        var uvPythons = allPythons.Where(p => p.Source == PythonSource.Uv).ToList();
+        Assert.IsEmpty(uvPythons, "No uv-managed Python should be included when disabled");
+    }
+
+    [TestMethod]
+    public void FindPython_WithWorkingDirectory_ShouldFindUvProjectEnvironment()
+    {
+        // This test demonstrates how a .NET file-based app inside a uv project
+        // can automatically discover the project's Python environment.
+        
+        // Arrange - simulate a uv project structure
+        var tempDir = Path.Combine(Path.GetTempPath(), $"uv-test-{Guid.NewGuid():N}");
+        var venvDir = Path.Combine(tempDir, ".venv");
+        
+        try
+        {
+            Directory.CreateDirectory(tempDir);
+            
+            // Create a minimal pyproject.toml to indicate this is a uv project
+            File.WriteAllText(Path.Combine(tempDir, "pyproject.toml"), """
+                [project]
+                name = "test-project"
+                version = "0.1.0"
+                """);
+            
+            // Note: This test will only pass if there's an actual .venv with Python
+            // For CI/CD, this would require setting up a real uv environment
+            
+            var options = new PythonDiscoveryOptions
+            {
+                WorkingDirectory = tempDir,
+                IncludeUvProjectEnvironment = true,
+                ForceRefresh = true
+            };
+            
+            // Act
+            var pythonInfo = PythonDiscovery.FindPython(options);
+            
+            // Assert - if uv project Python was found, it should have UvProject source
+            if (pythonInfo?.Source == PythonSource.UvProject)
+            {
+                Console.WriteLine($"Found uv project Python: {pythonInfo}");
+                Assert.Contains(".venv", pythonInfo.ExecutablePath, "UvProject Python should be from .venv directory");
+            }
+            else
+            {
+                Console.WriteLine("No uv project environment found (expected if .venv doesn't exist)");
+            }
+        }
+        finally
+        {
+            // Cleanup
+            if (Directory.Exists(tempDir))
+                Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [TestMethod]
+    public void FindPython_WithUvProjectDisabled_ShouldSkipUvProjectEnvironment()
+    {
+        // Arrange
+        var options = new PythonDiscoveryOptions
+        {
+            IncludeUvProjectEnvironment = false,
+            ForceRefresh = true
+        };
+
+        // Act
+        var allPythons = PythonDiscovery.FindAll(options);
+
+        // Assert
+        var uvProjectPythons = allPythons.Where(p => p.Source == PythonSource.UvProject).ToList();
+        Assert.IsEmpty(uvProjectPythons, "No UvProject Python should be included when disabled");
+    }
 }

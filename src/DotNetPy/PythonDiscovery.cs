@@ -24,6 +24,14 @@ public static partial class PythonDiscovery
             if (_cachedDefault != null && options?.ForceRefresh != true)
                 return _cachedDefault;
 
+            // Strategy 0: Find via uv project local environment (.venv) - highest priority
+            if (options?.IncludeUvProjectEnvironment != false)
+            {
+                _cachedDefault = FindViaUvProject(options);
+                if (_cachedDefault != null)
+                    return _cachedDefault;
+            }
+
             // Strategy 1: Find via 'python' or 'python3' command (most reliable)
             _cachedDefault = FindViaPythonCommand(options);
             if (_cachedDefault != null)
@@ -37,7 +45,15 @@ public static partial class PythonDiscovery
                     return _cachedDefault;
             }
 
-            // Strategy 3: Find via standard paths
+            // Strategy 3: Find via uv managed Python installations (global)
+            if (options?.IncludeUvManagedPython != false)
+            {
+                _cachedDefault = FindViaUv(options);
+                if (_cachedDefault != null)
+                    return _cachedDefault;
+            }
+
+            // Strategy 4: Find via standard paths
             _cachedDefault = FindViaStandardPaths(options);
             return _cachedDefault;
         }
@@ -52,6 +68,14 @@ public static partial class PythonDiscovery
     {
         var results = new List<PythonInfo>();
 
+        // 0. From uv project local environment (.venv)
+        if (options?.IncludeUvProjectEnvironment != false)
+        {
+            var fromUvProject = FindViaUvProject(options);
+            if (fromUvProject != null)
+                results.Add(fromUvProject);
+        }
+
         // 1. From python/python3 command
         var fromCommand = FindViaPythonCommand(options);
         if (fromCommand != null)
@@ -64,7 +88,14 @@ public static partial class PythonDiscovery
             results.AddRange(fromLauncher);
         }
 
-        // 3. From standard paths
+        // 3. From uv managed Python installations (global)
+        if (options?.IncludeUvManagedPython != false)
+        {
+            var fromUv = FindAllViaUv(options);
+            results.AddRange(fromUv);
+        }
+
+        // 4. From standard paths
         var fromPaths = FindAllViaStandardPaths(options);
         results.AddRange(fromPaths);
 
@@ -89,6 +120,78 @@ public static partial class PythonDiscovery
         {
             _cachedDefault = null;
         }
+    }
+
+    private static PythonInfo? FindViaUvProject(PythonDiscoveryOptions? options)
+    {
+        var startDir = options?.WorkingDirectory ?? Directory.GetCurrentDirectory();
+
+        // Walk up the directory tree looking for uv project indicators
+        var currentDir = startDir;
+        while (!string.IsNullOrEmpty(currentDir))
+        {
+            try
+            {
+                // Check for .venv directory (created by 'uv sync' or 'uv venv')
+                var venvDir = Path.Combine(currentDir, ".venv");
+                if (Directory.Exists(venvDir))
+                {
+                    // Verify this is a uv project by checking for pyproject.toml or uv.lock
+                    var hasUvProjectFile = File.Exists(Path.Combine(currentDir, "pyproject.toml")) ||
+                                           File.Exists(Path.Combine(currentDir, "uv.lock"));
+
+                    if (hasUvProjectFile)
+                    {
+                        var pythonExe = GetVenvPythonExecutable(venvDir);
+                        if (!string.IsNullOrEmpty(pythonExe) && File.Exists(pythonExe))
+                        {
+                            var pythonInfo = QueryPythonExecutable(pythonExe, PythonSource.UvProject);
+                            if (pythonInfo != null && MatchesOptions(pythonInfo, options))
+                            {
+                                pythonInfo.Priority = CalculatePriority(pythonInfo);
+                                return pythonInfo;
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // Skip inaccessible directories
+            }
+
+            // Move to parent directory
+            var parentDir = Directory.GetParent(currentDir)?.FullName;
+            if (parentDir == currentDir)
+                break;
+            currentDir = parentDir;
+        }
+
+        return null;
+    }
+
+    private static string? GetVenvPythonExecutable(string venvDir)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            // Windows: .venv/Scripts/python.exe
+            var scriptsPath = Path.Combine(venvDir, "Scripts", "python.exe");
+            if (File.Exists(scriptsPath))
+                return scriptsPath;
+        }
+        else
+        {
+            // Unix: .venv/bin/python3 or .venv/bin/python
+            var binPath = Path.Combine(venvDir, "bin", "python3");
+            if (File.Exists(binPath))
+                return binPath;
+
+            binPath = Path.Combine(venvDir, "bin", "python");
+            if (File.Exists(binPath))
+                return binPath;
+        }
+
+        return null;
     }
 
     private static PythonInfo? FindViaPythonCommand(PythonDiscoveryOptions? options)
@@ -198,6 +301,125 @@ public static partial class PythonDiscovery
         }
 
         return results;
+    }
+
+    private static PythonInfo? FindViaUv(PythonDiscoveryOptions? options)
+    {
+        var all = FindAllViaUv(options);
+        return all.FirstOrDefault();
+    }
+
+    private static List<PythonInfo> FindAllViaUv(PythonDiscoveryOptions? options)
+    {
+        var results = new List<PythonInfo>();
+        var uvPythonPaths = GetUvPythonPaths();
+
+        foreach (var uvPath in uvPythonPaths)
+        {
+            try
+            {
+                if (!Directory.Exists(uvPath))
+                    continue;
+
+                // uv installs Python in subdirectories like:
+                // Windows: cpython-3.12.0-windows-x86_64-none/python.exe
+                // Linux/macOS: cpython-3.12.0-linux-x86_64-gnu/bin/python3
+                var versionDirs = Directory.GetDirectories(uvPath);
+
+                foreach (var versionDir in versionDirs)
+                {
+                    try
+                    {
+                        string? pythonExe = null;
+
+                        if (OperatingSystem.IsWindows())
+                        {
+                            pythonExe = Path.Combine(versionDir, "python.exe");
+                            if (!File.Exists(pythonExe))
+                            {
+                                // Also check in install subdirectory
+                                pythonExe = Path.Combine(versionDir, "install", "python.exe");
+                            }
+                        }
+                        else
+                        {
+                            pythonExe = Path.Combine(versionDir, "bin", "python3");
+                            if (!File.Exists(pythonExe))
+                            {
+                                pythonExe = Path.Combine(versionDir, "bin", "python");
+                            }
+                            if (!File.Exists(pythonExe))
+                            {
+                                // Also check in install subdirectory
+                                pythonExe = Path.Combine(versionDir, "install", "bin", "python3");
+                            }
+                        }
+
+                        if (!string.IsNullOrEmpty(pythonExe) && File.Exists(pythonExe))
+                        {
+                            var pythonInfo = QueryPythonExecutable(pythonExe, PythonSource.Uv);
+                            if (pythonInfo != null && MatchesOptions(pythonInfo, options))
+                            {
+                                pythonInfo.Priority = CalculatePriority(pythonInfo);
+                                results.Add(pythonInfo);
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // Skip invalid directories
+                    }
+                }
+            }
+            catch
+            {
+                // Skip inaccessible directories
+            }
+        }
+
+        return results;
+    }
+
+    private static List<string> GetUvPythonPaths()
+    {
+        var paths = new List<string>();
+
+        if (OperatingSystem.IsWindows())
+        {
+            // Windows: %LOCALAPPDATA%\uv\python or %APPDATA%\uv\python
+            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+
+            if (!string.IsNullOrEmpty(localAppData))
+                paths.Add(Path.Combine(localAppData, "uv", "python"));
+
+            if (!string.IsNullOrEmpty(appData))
+                paths.Add(Path.Combine(appData, "uv", "python"));
+
+            // Also check UV_PYTHON_INSTALL_DIR environment variable
+            var uvInstallDir = Environment.GetEnvironmentVariable("UV_PYTHON_INSTALL_DIR");
+            if (!string.IsNullOrEmpty(uvInstallDir))
+                paths.Insert(0, uvInstallDir);
+        }
+        else
+        {
+            // Linux/macOS: $XDG_DATA_HOME/uv/python or ~/.local/share/uv/python
+            var xdgDataHome = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
+            var homeDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+            if (!string.IsNullOrEmpty(xdgDataHome))
+                paths.Add(Path.Combine(xdgDataHome, "uv", "python"));
+
+            if (!string.IsNullOrEmpty(homeDir))
+                paths.Add(Path.Combine(homeDir, ".local", "share", "uv", "python"));
+
+            // Also check UV_PYTHON_INSTALL_DIR environment variable
+            var uvInstallDir = Environment.GetEnvironmentVariable("UV_PYTHON_INSTALL_DIR");
+            if (!string.IsNullOrEmpty(uvInstallDir))
+                paths.Insert(0, uvInstallDir);
+        }
+
+        return paths;
     }
 
     private static PythonInfo? FindViaStandardPaths(PythonDiscoveryOptions? options)

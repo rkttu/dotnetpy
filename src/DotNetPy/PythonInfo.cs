@@ -54,6 +54,12 @@ public sealed class PythonInfo
 public enum PythonSource
 {
     /// <summary>
+    /// Found via uv project local virtual environment (.venv in project directory).
+    /// This has the highest priority as it represents the project-specific environment.
+    /// </summary>
+    UvProject = 110,
+
+    /// <summary>
     /// Found via PATH environment variable (highest priority).
     /// </summary>
     Path = 100,
@@ -62,6 +68,11 @@ public enum PythonSource
     /// Found via Python Launcher (py.exe on Windows).
     /// </summary>
     PyLauncher = 80,
+
+    /// <summary>
+    /// Found via uv package manager (global installations).
+    /// </summary>
+    Uv = 70,
 
     /// <summary>
     /// Found via Windows Registry.
