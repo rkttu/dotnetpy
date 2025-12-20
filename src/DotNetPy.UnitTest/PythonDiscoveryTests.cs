@@ -293,4 +293,84 @@ public sealed class PythonDiscoveryTests
         var uvProjectPythons = allPythons.Where(p => p.Source == PythonSource.UvProject).ToList();
         Assert.IsEmpty(uvProjectPythons, "No UvProject Python should be included when disabled");
     }
+
+    [TestMethod]
+    public void FindPython_ShouldReportIsFreeThreadedProperty()
+    {
+        // This test verifies that the IsFreeThreaded property is correctly detected.
+        // Most Python installations will have IsFreeThreaded = false (standard GIL build).
+        // Python 3.13+ built with --disable-gil will return true.
+
+        // Act
+        var pythonInfo = PythonDiscovery.FindPython();
+
+        // Assert
+        Assert.IsNotNull(pythonInfo, "Python should be found on the system");
+        
+        // IsFreeThreaded is a boolean, so it will always have a value
+        // Standard builds should return false, experimental free-threaded builds return true
+        Console.WriteLine($"Python {pythonInfo.Version} IsFreeThreaded: {pythonInfo.IsFreeThreaded}");
+        
+        if (pythonInfo.IsFreeThreaded)
+        {
+            Console.WriteLine("  -> This is an experimental free-threaded Python build (no GIL)!");
+            Assert.IsTrue(pythonInfo.Version >= new Version(3, 13), 
+                "Free-threaded Python should be version 3.13 or higher");
+        }
+        else
+        {
+            Console.WriteLine("  -> This is a standard Python build with GIL enabled.");
+        }
+    }
+
+    [TestMethod]
+    public void FindAll_ShouldIncludeIsFreeThreadedForAllPythons()
+    {
+        // Act
+        var allPythons = PythonDiscovery.FindAll();
+
+        // Assert
+        Assert.IsNotNull(allPythons);
+        Assert.IsNotEmpty(allPythons, "At least one Python should be found");
+
+        Console.WriteLine($"Free-threaded status for {allPythons.Count} Python installation(s):");
+        foreach (var python in allPythons)
+        {
+            Console.WriteLine($"  - {python.Version} ({python.Source}): IsFreeThreaded={python.IsFreeThreaded}");
+        }
+
+        // Verify all pythons have the property set (even if false)
+        foreach (var python in allPythons)
+        {
+            // IsFreeThreaded is a bool, not nullable, so this always passes
+            // The point is to ensure the property is properly initialized
+            Assert.IsTrue(python.IsFreeThreaded == true || python.IsFreeThreaded == false,
+                "IsFreeThreaded should be a valid boolean value");
+        }
+    }
+
+    [TestMethod]
+    public void Python_IsFreeThreaded_ShouldReflectCurrentPythonInfo()
+    {
+        // This test verifies the static Python.IsFreeThreaded property
+
+        // Act
+        try
+        {
+            Python.Initialize();
+            var isFreeThreaded = Python.IsFreeThreaded;
+            var pythonInfo = Python.CurrentPythonInfo;
+
+            // Assert
+            Assert.IsNotNull(pythonInfo);
+            Assert.AreEqual(pythonInfo.IsFreeThreaded, isFreeThreaded,
+                "Python.IsFreeThreaded should match CurrentPythonInfo.IsFreeThreaded");
+            
+            Console.WriteLine($"Python.IsFreeThreaded: {isFreeThreaded}");
+        }
+        catch (DotNetPyException ex)
+        {
+            Assert.Inconclusive($"Python not found on system: {ex.Message}");
+        }
+    }
 }

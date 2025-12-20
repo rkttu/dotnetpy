@@ -84,6 +84,18 @@ public static class Python
     public static PythonInfo? CurrentPythonInfo => DotNetPyExecutor.CurrentPythonInfo;
 
     /// <summary>
+    /// Gets whether the currently initialized Python was built with free-threading support (no GIL).
+    /// Returns false if Python has not been initialized or is a standard GIL-enabled build.
+    /// </summary>
+    /// <remarks>
+    /// Free-threaded Python (experimental in 3.13+) allows true multi-threaded execution
+    /// without the Global Interpreter Lock (GIL). When this returns true, the worker thread
+    /// pattern for thread affinity may not be necessary, though it's still recommended for
+    /// compatibility until the free-threaded ecosystem matures.
+    /// </remarks>
+    public static bool IsFreeThreaded => CurrentPythonInfo?.IsFreeThreaded ?? false;
+
+    /// <summary>
     /// Executes Python code.
     /// </summary>
     public static void Execute(string code)

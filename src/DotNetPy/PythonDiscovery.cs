@@ -524,12 +524,19 @@ public static partial class PythonDiscovery
 import sys
 import sysconfig
 import platform
+import site
 print(sys.executable)
 print(sysconfig.get_config_var('LIBDIR') or '')
 print(sysconfig.get_config_var('LDLIBRARY') or '')
 print(platform.machine())
 print(sys.prefix)
 print(sys.base_prefix)
+# Get the actual site-packages path (filter for paths containing 'site-packages')
+_sp = [p for p in site.getsitepackages() if 'site-packages' in p]
+print(_sp[0] if _sp else (site.getsitepackages()[0] if site.getsitepackages() else ''))
+# Check for free-threaded build (Python 3.13+ with --disable-gil)
+_ft = sysconfig.get_config_var('Py_GIL_DISABLED')
+print('1' if _ft else '0')
 ";
 
             var infoOutput = ExecuteCommand(executablePath, $"-c \"{script.Replace("\"", "\\\"")}\"");
@@ -540,7 +547,7 @@ print(sys.base_prefix)
                    .Select(l => l.Trim())
                    .ToArray();
 
-            if (lines.Length < 6)
+            if (lines.Length < 7)
                 return null;
 
             var actualExePath = lines[0];
@@ -549,6 +556,8 @@ print(sys.base_prefix)
             var machine = lines[3];
             var prefix = lines[4];
             var basePrefix = lines[5];
+            var sitePackages = lines.Length > 6 ? lines[6] : null;
+            var isFreeThreaded = lines.Length > 7 && lines[7] == "1";
 
             // Determine library path (pass basePrefix for venv support)
             var libraryPath = DetermineLibraryPath(actualExePath, libDir, libName, version, basePrefix);
@@ -558,6 +567,19 @@ print(sys.base_prefix)
             // Determine architecture
             var architecture = ParseArchitecture(machine);
 
+            // Detect virtual environment: sys.prefix != sys.base_prefix
+            var isVirtualEnv = !string.Equals(prefix, basePrefix, StringComparison.OrdinalIgnoreCase);
+
+            // Determine site-packages path
+            var resolvedSitePackages = sitePackages;
+            if (string.IsNullOrEmpty(resolvedSitePackages) || !Directory.Exists(resolvedSitePackages))
+            {
+                // Fallback: construct site-packages path manually
+                resolvedSitePackages = OperatingSystem.IsWindows()
+                    ? Path.Combine(prefix, "Lib", "site-packages")
+                    : Path.Combine(prefix, "lib", $"python{version.Major}.{version.Minor}", "site-packages");
+            }
+
             return new PythonInfo
             {
                 ExecutablePath = actualExePath,
@@ -565,7 +587,11 @@ print(sys.base_prefix)
                 Version = version,
                 Architecture = architecture,
                 Source = source,
-                HomeDirectory = prefix
+                HomeDirectory = prefix,
+                IsVirtualEnvironment = isVirtualEnv,
+                BasePrefix = basePrefix,
+                SitePackagesPath = Directory.Exists(resolvedSitePackages) ? resolvedSitePackages : null,
+                IsFreeThreaded = isFreeThreaded
             };
         }
         catch

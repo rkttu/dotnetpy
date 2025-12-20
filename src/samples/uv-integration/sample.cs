@@ -76,14 +76,14 @@ result = {
     'sqrt2': math.sqrt(2)
 }
 ");
-Console.WriteLine($"  ¥ð = {mathResult?.GetDouble("pi"):F10}");
+Console.WriteLine($"  pi = {mathResult?.GetDouble("pi"):F10}");
 Console.WriteLine($"  e = {mathResult?.GetDouble("e"):F10}");
-Console.WriteLine($"  ¡î2 = {mathResult?.GetDouble("sqrt2"):F10}");
+Console.WriteLine($"  sqrt(2) = {mathResult?.GetDouble("sqrt2"):F10}");
 
 Console.WriteLine();
 
 // -----------------------------------------------------------------------------
-// 3. Data Marshalling (.NET ¡æ Python ¡æ .NET)
+// 3. Data Marshalling (.NET -> Python -> .NET)
 // -----------------------------------------------------------------------------
 Console.WriteLine("[3] Data Marshalling");
 Console.WriteLine(new string('-', 50));

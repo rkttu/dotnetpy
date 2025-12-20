@@ -272,6 +272,47 @@ public sealed partial class DotNetPyExecutor : IDisposable
             // Initialize Python
             _pyInitialize!();
             _initialized = true;
+
+            // Configure virtual environment paths if applicable
+            ConfigureVirtualEnvironment(pythonInfo);
+        }
+    }
+
+    /// <summary>
+    /// Configures sys.path for virtual environments.
+    /// When Python is embedded, the virtual environment's site-packages is not automatically added.
+    /// This method ensures packages installed in the venv are accessible.
+    /// </summary>
+    private static void ConfigureVirtualEnvironment(PythonInfo? pythonInfo)
+    {
+        if (pythonInfo == null)
+            return;
+
+        // Always configure if we have a site-packages path that differs from the embedded Python's default
+        var sitePackagesPath = pythonInfo.SitePackagesPath;
+        if (string.IsNullOrEmpty(sitePackagesPath) || !Directory.Exists(sitePackagesPath))
+            return;
+
+        try
+        {
+            // Escape backslashes for Python string literal
+            var escapedPath = sitePackagesPath.Replace("\\", "\\\\");
+
+            // Add site-packages to sys.path if not already present
+            // Insert at position 0 to give venv packages priority over system packages
+            var setupCode = $@"
+import sys
+_venv_site = '{escapedPath}'
+if _venv_site not in sys.path:
+    sys.path.insert(0, _venv_site)
+del _venv_site
+";
+            _pyRunSimpleString!(setupCode);
+        }
+        catch
+        {
+            // Silently ignore errors during path configuration
+            // The worst case is packages won't be found, which will be reported later
         }
     }
 

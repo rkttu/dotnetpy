@@ -41,6 +41,32 @@ public sealed class PythonInfo
     public string? HomeDirectory { get; init; }
 
     /// <summary>
+    /// Gets whether this Python is running in a virtual environment.
+    /// True when sys.prefix != sys.base_prefix (venv, virtualenv, uv, conda, etc.).
+    /// </summary>
+    public bool IsVirtualEnvironment { get; init; }
+
+    /// <summary>
+    /// Gets the base prefix of the Python installation (sys.base_prefix).
+    /// For virtual environments, this points to the original Python installation.
+    /// For non-virtual environments, this equals HomeDirectory.
+    /// </summary>
+    public string? BasePrefix { get; init; }
+
+    /// <summary>
+    /// Gets the path to the site-packages directory for this Python installation.
+    /// For virtual environments, this is the venv's site-packages.
+    /// </summary>
+    public string? SitePackagesPath { get; init; }
+
+    /// <summary>
+    /// Gets whether this Python was built with free-threading support (no GIL).
+    /// Available in Python 3.13+ experimental builds compiled with --disable-gil.
+    /// When true, the GIL is disabled and true multi-threaded execution is possible.
+    /// </summary>
+    public bool IsFreeThreaded { get; init; }
+
+    /// <summary>
     /// Returns a string representation of the Python installation information.
     /// </summary>
     /// <returns>A formatted string containing version, architecture, source, and path information.</returns>
