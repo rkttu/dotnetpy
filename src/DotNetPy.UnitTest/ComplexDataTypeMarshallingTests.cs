@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace DotNetPy.UnitTest;
 
 [TestClass]
@@ -44,7 +46,7 @@ result = json.loads(json.dumps(date_value))
 
         // Assert
         Assert.IsNotNull(dateString);
-        var parsedDate = DateTime.Parse(dateString);
+        var parsedDate = DateTime.Parse(dateString, null, DateTimeStyles.RoundtripKind);
         Assert.AreEqual(now.Year, parsedDate.Year);
         Assert.AreEqual(now.Month, parsedDate.Month);
         Assert.AreEqual(now.Day, parsedDate.Day);
@@ -66,7 +68,7 @@ result = dto_value
 
         // Assert
         Assert.IsNotNull(dtoString);
-        var parsed = DateTimeOffset.Parse(dtoString);
+        var parsed = DateTimeOffset.Parse(dtoString, null, DateTimeStyles.RoundtripKind);
         Assert.AreEqual(dateTimeOffset.Year, parsed.Year);
         Assert.AreEqual(dateTimeOffset.Month, parsed.Month);
         Assert.AreEqual(dateTimeOffset.Day, parsed.Day);

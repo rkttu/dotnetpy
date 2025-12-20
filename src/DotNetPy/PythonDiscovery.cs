@@ -529,6 +529,7 @@ print(sysconfig.get_config_var('LIBDIR') or '')
 print(sysconfig.get_config_var('LDLIBRARY') or '')
 print(platform.machine())
 print(sys.prefix)
+print(sys.base_prefix)
 ";
 
             var infoOutput = ExecuteCommand(executablePath, $"-c \"{script.Replace("\"", "\\\"")}\"");
@@ -539,7 +540,7 @@ print(sys.prefix)
                    .Select(l => l.Trim())
                    .ToArray();
 
-            if (lines.Length < 5)
+            if (lines.Length < 6)
                 return null;
 
             var actualExePath = lines[0];
@@ -547,9 +548,10 @@ print(sys.prefix)
             var libName = lines[2];
             var machine = lines[3];
             var prefix = lines[4];
+            var basePrefix = lines[5];
 
-            // Determine library path
-            var libraryPath = DetermineLibraryPath(actualExePath, libDir, libName, version);
+            // Determine library path (pass basePrefix for venv support)
+            var libraryPath = DetermineLibraryPath(actualExePath, libDir, libName, version, basePrefix);
             if (string.IsNullOrEmpty(libraryPath) || !File.Exists(libraryPath))
                 return null;
 
@@ -572,7 +574,7 @@ print(sys.prefix)
         }
     }
 
-    private static string? DetermineLibraryPath(string exePath, string libDir, string libName, Version version)
+    private static string? DetermineLibraryPath(string exePath, string libDir, string libName, Version version, string? basePrefix = null)
     {
         if (OperatingSystem.IsWindows())
         {
@@ -583,20 +585,31 @@ print(sys.prefix)
 
             // Try python3XX.dll or pythonXX.dll
             var dllPatterns = new[]
-          {
- $"python{version.Major}{version.Minor}.dll",
-        $"python{version.Major}.dll",
-        libName
+            {
+                $"python{version.Major}{version.Minor}.dll",
+                $"python{version.Major}.dll",
+                libName
             };
 
-            foreach (var pattern in dllPatterns)
+            // Search directories: exe directory first, then base_prefix (for venv support)
+            var searchDirs = new List<string> { exeDir };
+            if (!string.IsNullOrEmpty(basePrefix) && !string.Equals(exeDir, basePrefix, StringComparison.OrdinalIgnoreCase))
             {
-                if (string.IsNullOrEmpty(pattern))
-                    continue;
+                // For venv, base_prefix points to the original Python installation
+                searchDirs.Add(basePrefix);
+            }
 
-                var dllPath = Path.Combine(exeDir, pattern);
-                if (File.Exists(dllPath))
-                    return dllPath;
+            foreach (var dir in searchDirs)
+            {
+                foreach (var pattern in dllPatterns)
+                {
+                    if (string.IsNullOrEmpty(pattern))
+                        continue;
+
+                    var dllPath = Path.Combine(dir, pattern);
+                    if (File.Exists(dllPath))
+                        return dllPath;
+                }
             }
 
             return null;
@@ -613,15 +626,24 @@ print(sys.prefix)
 
             // Try common patterns
             var soPatterns = new[]
-      {
-      $"libpython{version.Major}.{version.Minor}.so",
-         $"libpython{version.Major}.{version.Minor}m.so",
+            {
+                $"libpython{version.Major}.{version.Minor}.so",
+                $"libpython{version.Major}.{version.Minor}m.so",
                 $"libpython{version.Major}.so",
                 libName
-  };
+            };
 
-            var searchDirs = new[] { libDir, "/usr/lib", "/usr/local/lib", "/usr/lib/x86_64-linux-gnu" }
-                .Where(d => !string.IsNullOrEmpty(d));
+            var searchDirs = new List<string>();
+            if (!string.IsNullOrEmpty(libDir))
+                searchDirs.Add(libDir);
+            
+            // Add base_prefix lib directory for venv support
+            if (!string.IsNullOrEmpty(basePrefix))
+            {
+                searchDirs.Add(Path.Combine(basePrefix, "lib"));
+            }
+            
+            searchDirs.AddRange(new[] { "/usr/lib", "/usr/local/lib", "/usr/lib/x86_64-linux-gnu" });
 
             foreach (var dir in searchDirs)
             {
