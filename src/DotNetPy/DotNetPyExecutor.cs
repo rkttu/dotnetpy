@@ -118,12 +118,20 @@ public sealed partial class DotNetPyExecutor : IDisposable
         IntPtr arg1,
         IntPtr sentinel);
 
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate IntPtr PyEvalSaveThreadDelegate();
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void PyEvalRestoreThreadDelegate(IntPtr tstate);
+
     // Function pointer instances
     private static PyInitializeDelegate? _pyInitialize;
     private static PyFinalizeDelegate? _pyFinalize;
     private static PyIsInitializedDelegate? _pyIsInitialized;
     private static PyGILStateEnsureDelegate? _pyGILStateEnsure;
     private static PyGILStateReleaseDelegate? _pyGILStateRelease;
+    private static PyEvalSaveThreadDelegate? _pyEvalSaveThread;
+    private static PyEvalRestoreThreadDelegate? _pyEvalRestoreThread;
     private static PyRunSimpleStringDelegate? _pyRunSimpleString;
     private static PyRunStringDelegate? _pyRunString;
     private static PyImportAddModuleDelegate? _pyImportAddModule;
@@ -269,12 +277,17 @@ public sealed partial class DotNetPyExecutor : IDisposable
             _initializedLibraryPath = libraryPath;
             _currentPythonInfo = pythonInfo;
 
-            // Initialize Python
+            // Initialize Python (this acquires the GIL)
             _pyInitialize!();
-            _initialized = true;
 
-            // Configure virtual environment paths if applicable
+            // Configure virtual environment paths if applicable (while we still hold the GIL)
             ConfigureVirtualEnvironment(pythonInfo);
+
+            // Release the GIL so that GilLock can properly acquire it later
+            // Py_Initialize leaves the GIL held, so we must release it for PyGILState_Ensure to work correctly
+            _pyEvalSaveThread!();
+
+            _initialized = true;
         }
     }
 
@@ -353,6 +366,8 @@ del _venv_site
             _pyIsInitialized = NativeMethods.LoadFunction<PyIsInitializedDelegate>(_libraryHandle, "Py_IsInitialized");
             _pyGILStateEnsure = NativeMethods.LoadFunction<PyGILStateEnsureDelegate>(_libraryHandle, "PyGILState_Ensure");
             _pyGILStateRelease = NativeMethods.LoadFunction<PyGILStateReleaseDelegate>(_libraryHandle, "PyGILState_Release");
+            _pyEvalSaveThread = NativeMethods.LoadFunction<PyEvalSaveThreadDelegate>(_libraryHandle, "PyEval_SaveThread");
+            _pyEvalRestoreThread = NativeMethods.LoadFunction<PyEvalRestoreThreadDelegate>(_libraryHandle, "PyEval_RestoreThread");
             _pyRunSimpleString = NativeMethods.LoadFunction<PyRunSimpleStringDelegate>(_libraryHandle, "PyRun_SimpleString");
             _pyRunString = NativeMethods.LoadFunction<PyRunStringDelegate>(_libraryHandle, "PyRun_String");
             _pyImportAddModule = NativeMethods.LoadFunction<PyImportAddModuleDelegate>(_libraryHandle, "PyImport_AddModule");
@@ -1513,21 +1528,42 @@ del _to_delete
         }
     }
 
+    // Thread-local counter for reentrant GIL acquisition
+    [ThreadStatic]
+    private static int _gilLockCount;
+    [ThreadStatic]
+    private static IntPtr _gilState;
+
     /// <summary>
     /// RAII-style struct to manage GIL acquisition/release.
+    /// Supports reentrant acquisition on the same thread.
     /// </summary>
     private readonly struct GilLock : IDisposable
     {
-        private readonly IntPtr _state;
+        private readonly bool _ownsLock;
 
         public GilLock()
         {
-            _state = _pyGILStateEnsure!();
+            if (_gilLockCount == 0)
+            {
+                _gilState = _pyGILStateEnsure!();
+                _ownsLock = true;
+            }
+            else
+            {
+                _ownsLock = false;
+            }
+            _gilLockCount++;
         }
 
         public void Dispose()
         {
-            _pyGILStateRelease!(_state);
+            _gilLockCount--;
+            if (_ownsLock && _gilLockCount == 0)
+            {
+                _pyGILStateRelease!(_gilState);
+                _gilState = IntPtr.Zero;
+            }
         }
     }
 }
