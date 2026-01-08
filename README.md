@@ -3,9 +3,7 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 > **⚠️ EXPERIMENTAL**: This library is currently in an experimental stage and requires extensive testing before being used in production environments. APIs may change without notice, and there may be undiscovered issues.
-
 > **🤖 AI-Assisted Development**: Significant portions of this codebase were written with the assistance of AI code assistants. While the code has been reviewed and tested, users should be aware of this development approach.
-
 > **💡 Recommendation**: If you need a stable, battle-tested solution for .NET and Python interoperability, we recommend using [Python.NET (pythonnet)](https://github.com/pythonnet/pythonnet) instead. See our [comparison guide](docs/COMPARISON.md) for detailed differences.
 
 DotNetPy (pronounced `dot-net-pie`) is a .NET library that allows you to seamlessly execute Python code directly from your C# applications. It provides a simple and intuitive API to run Python scripts and evaluate expressions with minimal boilerplate.
@@ -28,21 +26,22 @@ DotNetPy is designed to be the **lightest way to run Python from .NET**:
 - **Execute Python Code**: Run multi-line Python scripts.
 - **Evaluate Expressions**: Directly evaluate single-line Python expressions and get the result.
 - **Data Marshaling**:
-    - Pass complex .NET objects (like arrays and dictionaries) to Python.
-    - Convert Python objects (including dictionaries, lists, numbers, and strings) back into .NET types.
+  - Pass complex .NET objects (like arrays and dictionaries) to Python.
+  - Convert Python objects (including dictionaries, lists, numbers, and strings) back into .NET types.
 - **Variable Management**:
-    - `ExecuteAndCapture`: Execute code and capture a specific variable (by convention, `result`) into a .NET object.
-    - `CaptureVariable(s)`: Capture one or more global variables from the Python session after execution.
-    - `DeleteVariable(s)`: Remove variables from the Python session.
-    - `VariableExists`: Check if a variable exists in the Python session.
+  - `ExecuteAndCapture`: Execute code and capture a specific variable (by convention, `result`) into a .NET object.
+  - `CaptureVariable(s)`: Capture one or more global variables from the Python session after execution.
+  - `DeleteVariable(s)`: Remove variables from the Python session.
+  - `VariableExists`: Check if a variable exists in the Python session.
 - **No Boilerplate**: The library handles the complexities of the Python C API, providing a clean interface.
 
 ## Getting Started
 
 ### Prerequisites
 
-- .NET 8.0 or later.
+- .NET 10.0 or later.
 - A Python installation (e.g., Python 3.13). You will need the path to the Python shared library (`pythonXX.dll` on Windows, `libpythonX.X.so` on Linux).
+- (Optional) uv for declarative environment management (see [Samples](#samples) section).
 
 ### Initialization
 
@@ -96,18 +95,18 @@ Console.WriteLine(simpleCalc?.GetInt32()); // Output: 2
 
 // Multi-line scripts are supported
 var sqrtResult = executor.ExecuteAndCapture(@"
-	import math
-	result = math.sqrt(16)
+    import math
+    result = math.sqrt(16)
 ");
 Console.WriteLine(sqrtResult?.GetDouble()); // Output: 4
 
 // The result can be a complex type, like a dictionary
 var dictResult = executor.ExecuteAndCapture(@"
-	data = [1, 2, 3, 4, 5]
-	result = {
-	    'sum': sum(data),
-	    'mean': sum(data) / len(data)
-	}
+    data = [1, 2, 3, 4, 5]
+    result = {
+        'sum': sum(data),
+        'mean': sum(data) / len(data)
+    }
 ");
 // Convert the Python dict to a .NET Dictionary
 var stats = dictResult?.ToDictionary();
@@ -227,6 +226,7 @@ DotNetPy is **thread-safe** through Python's Global Interpreter Lock (GIL). Mult
 **DotNetPy is not designed for high-concurrency scenarios** involving many threads simultaneously executing Python code. The library is best suited for:
 
 ✅ **Recommended Use Cases:**
+
 - Sequential Python script execution
 - I/O-bound operations where threads naturally yield
 - Low to moderate concurrency (2-5 concurrent operations)
@@ -234,6 +234,7 @@ DotNetPy is **thread-safe** through Python's Global Interpreter Lock (GIL). Mult
 - Data processing workflows with reasonable parallelism
 
 ❌ **Not Recommended:**
+
 - High-frequency Python calls from 10+ concurrent threads
 - CPU-intensive parallel processing relying on Python
 - Real-time systems requiring predictable low-latency responses
@@ -249,6 +250,7 @@ DotNetPy provides a **safe and convenient** bridge between .NET and Python, resp
 ### Alternative Approaches
 
 For CPU-intensive parallel workloads, consider:
+
 - **Pure .NET solutions** for performance-critical parallel processing
 - **Python multiprocessing** (separate processes) for true parallelism in Python
 - **Task-based patterns** that minimize concurrent Python calls
@@ -259,19 +261,21 @@ For CPU-intensive parallel workloads, consider:
 
 DotNetPy supports declaratively managing Python environments using [uv](https://github.com/astral-sh/uv). This allows you to define your Python project configuration in C# and have DotNetPy handle environment setup automatically.
 
-#### Prerequisites
+#### Sample Prerequisites
 
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) installed on your system
-- .NET 8.0 or later
+- .NET 10.0 or later
 
 **Install uv:**
 
 **Windows (PowerShell):**
+
 ```powershell
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
 **macOS/Linux:**
+
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
@@ -405,7 +409,7 @@ managed = true
 **PythonProjectBuilder:**
 
 | Method | Description |
-|--------|-------------|
+| -------- | ------------- |
 | `WithProjectName(name)` | Sets the project name |
 | `WithVersion(version)` | Sets the project version |
 | `WithDescription(description)` | Sets the project description |
@@ -421,7 +425,7 @@ managed = true
 **PythonProject:**
 
 | Property/Method | Description |
-|-----------------|-------------|
+| ----------------- | ------------- |
 | `ProjectName` | The project name |
 | `WorkingDirectory` | The project directory |
 | `PythonExecutable` | Path to Python executable |
@@ -437,7 +441,7 @@ managed = true
 **UvCli:**
 
 | Property/Method | Description |
-|-----------------|-------------|
+| ----------------- | ------------- |
 | `IsAvailable` | Check if uv is installed |
 | `Version` | Get uv version |
 | `EnsureAvailable()` | Throw if uv not available |
@@ -491,7 +495,7 @@ dotnet run sample.cs
 
 #### Expected Output
 
-```
+```text
 === DotNetPy + uv Integration Test ===
 
 [1] Python Discovery
@@ -523,7 +527,7 @@ dotnet run sample.cs
 
 The `src/DotNetPy.UnitTest/Integration` directory contains integration tests that verify DotNetPy works correctly with real Python environments managed by uv.
 
-### Prerequisites
+### Test Prerequisites
 
 The integration tests require `uv` CLI to be installed on your system.
 
@@ -560,7 +564,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 pip install uv
 ```
 
-For more installation options, see: https://docs.astral.sh/uv/getting-started/installation/
+For more installation options, see: <https://docs.astral.sh/uv/getting-started/installation/>
 
 ### Running Integration Tests
 
@@ -595,7 +599,7 @@ dotnet test --filter "FullyQualifiedName~Integration" --logger "console;verbosit
 ### Test Structure
 
 | Test Class | Description |
-|------------|-------------|
+| ------------ | ------------- |
 | `UvIntegrationTests` | Basic uv environment setup and Python script execution |
 | `NumPyIntegrationTests` | NumPy array and matrix operations |
 | `PandasIntegrationTests` | Pandas DataFrame operations |
@@ -612,7 +616,7 @@ dotnet test --filter "FullyQualifiedName~Integration" --logger "console;verbosit
 
 If `uv` is not installed, tests will be marked as **Inconclusive** with installation instructions. This allows CI/CD pipelines to gracefully skip these tests on systems without `uv`.
 
-### Troubleshooting
+### Test Troubleshooting
 
 - **"uv is not installed" error**: Make sure `uv` is in your PATH. Try running `uv --version` in your terminal.
 - **Python library not found in venv**: On Windows, the Python DLL may not be copied to the virtual environment. The tests will fall back to using the system Python library path.
