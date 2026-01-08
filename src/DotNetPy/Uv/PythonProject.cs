@@ -194,10 +194,16 @@ public sealed class PythonProject : IDisposable
 
     /// <summary>
     /// Gets a DotNetPyExecutor instance configured to use this project's Python environment.
+    /// The executor is automatically configured with the virtual environment's site-packages
+    /// in sys.path, enabling access to all installed packages.
     /// </summary>
-    /// <returns>A new DotNetPyExecutor instance.</returns>
+    /// <param name="autoLoadSitePackages">
+    /// If true (default), automatically adds the virtual environment's site-packages to sys.path.
+    /// Set to false if you want to manage sys.path manually.
+    /// </param>
+    /// <returns>A DotNetPyExecutor instance configured for this project.</returns>
     /// <exception cref="DotNetPyException">Thrown when the project is not initialized.</exception>
-    public DotNetPyExecutor GetExecutor()
+    public DotNetPyExecutor GetExecutor(bool autoLoadSitePackages = true)
     {
         ThrowIfDisposed();
         EnsureInitialized();
@@ -211,7 +217,31 @@ public sealed class PythonProject : IDisposable
         // Set up virtual environment paths before initialization
         SetupVirtualEnvironment();
 
-        return DotNetPyExecutor.GetInstance(_pythonLibrary, null);
+        var executor = DotNetPyExecutor.GetInstance(_pythonLibrary, null);
+
+        // Automatically load site-packages into sys.path
+        if (autoLoadSitePackages && !string.IsNullOrEmpty(_venvPath))
+        {
+            executor.LoadVirtualEnvironment(_venvPath);
+        }
+
+        return executor;
+    }
+
+    /// <summary>
+    /// Gets the site-packages directory path for this project's virtual environment.
+    /// </summary>
+    /// <returns>The site-packages path, or null if not found.</returns>
+    public string? GetSitePackagesPath()
+    {
+        ThrowIfDisposed();
+
+        if (string.IsNullOrEmpty(_venvPath) || !Directory.Exists(_venvPath))
+        {
+            return null;
+        }
+
+        return DotNetPyExecutorExtensions.FindSitePackages(_venvPath);
     }
 
     /// <summary>
