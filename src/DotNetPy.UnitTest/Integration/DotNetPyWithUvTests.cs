@@ -47,7 +47,8 @@ public sealed class DotNetPyWithUvTests
     [ClassCleanup]
     public static void ClassCleanup()
     {
-        _executor?.Dispose();
+        // Note: _executor is a singleton from Python.GetInstance(), 
+        // do not dispose it as other test classes may still use it
         _fixture?.Dispose();
     }
 
