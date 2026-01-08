@@ -53,6 +53,21 @@ Console.WriteLine("[2] Creating Python project");
 Console.WriteLine(new string('-', 50));
 
 // Define your Python project using the fluent builder API
+//
+// Working Directory Options:
+// --------------------------
+// By default, a temporary directory is created automatically:
+//   - Location: %TEMP%/dotnetpy-projects/{projectName}-{guid}
+//   - This temporary directory is DELETED when Dispose() is called.
+//
+// To persist the project to a specific location, use WithWorkingDirectory():
+//   .WithWorkingDirectory(@"D:\MyPythonProjects\my-project")
+//
+// When using WithWorkingDirectory():
+//   - The specified directory is used (created if it doesn't exist).
+//   - The directory is NOT deleted when Dispose() is called.
+//   - You can reuse the environment later by pointing to the same directory.
+//
 using var project = PythonProject.CreateBuilder()
     .WithProjectName("data-analysis-demo")
     .WithVersion("1.0.0")
@@ -61,6 +76,7 @@ using var project = PythonProject.CreateBuilder()
     .AddDependencies("numpy>=1.24.0", "pandas>=2.0.0")
     .AddDevDependency("pytest", ">=7.0.0")
     .WithUvSetting("python-preference", "only-managed")
+    // .WithWorkingDirectory(@"D:\MyPythonProjects\persistent-env")  // Uncomment to persist
     .Build();
 
 Console.WriteLine($"  Project Name: {project.ProjectName}");
