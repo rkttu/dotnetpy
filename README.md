@@ -8,16 +8,62 @@
 
 DotNetPy (pronounced `dot-net-pie`) is a .NET library that allows you to seamlessly execute Python code directly from your C# applications. It provides a simple and intuitive API to run Python scripts and evaluate expressions with minimal boilerplate.
 
+## Project Philosophy
+
+DotNetPy is built around three core principles:
+
+### 1. Declarative Python Control from .NET
+
+Write Python code as strings within your C# code, with full control over execution and data flow. No separate Python files, no Source Generators, no complex setup — just define your Python logic inline and execute it.
+
+```csharp
+// Define and execute Python declaratively from C#
+using var result = executor.ExecuteAndCapture(@"
+    import statistics
+    result = {'mean': statistics.mean(data), 'stdev': statistics.stdev(data)}
+", new Dictionary<string, object?> { { "data", myNumbers } });
+```
+
+### 2. File-based App & Native AOT Ready
+
+Designed from the ground up for modern .NET scenarios:
+
+- **File-based Apps (.NET 10+)**: Works perfectly with `dotnet run script.cs` — no project file required
+- **Native AOT**: The only .NET-Python interop library that supports `PublishAot=true`
+- **Minimal Dependencies**: No heavy runtime requirements
+
+```bash
+# Just run it — no csproj needed
+dotnet run my-script.cs
+```
+
+### 3. First-class uv Integration
+
+Declaratively manage Python environments using [uv](https://github.com/astral-sh/uv):
+
+```csharp
+// Define your Python environment in C#
+using var project = PythonProject.CreateBuilder()
+    .WithProjectName("my-analysis")
+    .WithPythonVersion(">=3.10")
+    .AddDependencies("numpy>=1.24.0", "pandas>=2.0.0")
+    .Build();
+
+await project.InitializeAsync();  // Downloads Python, creates venv, installs packages
+```
+
 ## Why DotNetPy?
 
 DotNetPy is designed to be the **lightest way to run Python from .NET**:
 
 - ✅ **Zero Boilerplate**: No GIL management or Source Generator setup required
-- ✅ **AOT-Friendly**: Explicitly designed for Native AOT scenarios
+- ✅ **AOT-Friendly**: The only .NET-Python interop library supporting Native AOT
+- ✅ **File-based App Ready**: Works with `dotnet run script.cs` (.NET 10+)
+- ✅ **uv Integration**: Declarative Python environment management built-in
 - ✅ **Minimal Learning Curve**: Start executing Python in just a few lines
 - ✅ **Transparent Development**: Experimental status clearly communicated
 
-**Not sure which Python interop library to choose?** Check out our [detailed comparison](docs/COMPARISON.md) with pythonnet and CSnakes.
+**Not sure which Python interop library to choose?** Check out our [detailed comparison](docs/COMPARISON.md) with pythonnet, CSnakes, DotWrap, and IronPython.
 
 ## Features
 

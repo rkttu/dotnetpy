@@ -1,43 +1,51 @@
-# C# ¡æ Python ÅëÇÕ ¶óÀÌºê·¯¸® ºñ±³
+# C# to Python Interop Library Comparison
 
-ÀÌ ¹®¼­´Â C#¿¡¼­ Python ÄÚµå¸¦ ½ÇÇàÇÏ´Â ¹æÇâ¿¡ ÃÊÁ¡À» ¸ÂÃá ºñ±³ÀÔ´Ï´Ù.
+This document compares various approaches to executing Python code from C#, plus one library (DotWrap) that works in the opposite direction.
 
-## ÇÑ´«¿¡ º¸´Â ºñ±³Ç¥
+## Comparison at a Glance
 
-| Æ¯¼º | DotNetPy | pythonnet | IronPython | CSnakes |
-|------|----------|-----------|------------|---------|
-| **Python ¹öÀü** | 3.8+ (CPython) | 3.6+ (CPython) | 3.4 (ÀÚÃ¼ ±¸Çö) | 3.9-3.13 (CPython) |
-| **.NET ¹öÀü** | .NET 8+ | .NET 6+ | .NET 6+ | .NET 8-9 |
-| **Native AOT** | ? ¿Ïº® Áö¿ø | ? ¹ÌÁö¿ø | ? ¹ÌÁö¿ø | ? ¹ÌÁö¿ø |
-| **GIL °ü¸®** | ÀÚµ¿ (³»ºÎ) | ¼öµ¿ (`Py.GIL()`) | ¾øÀ½ (ÀÚÃ¼ ·±Å¸ÀÓ) | ÀÚµ¿ (³»ºÎ) |
-| **Source Generator** | ? ºÒÇÊ¿ä | ? ºÒÇÊ¿ä | ? ºÒÇÊ¿ä | ? ÇÊ¼ö |
-| **NumPy/Pandas** | ? Áö¿ø | ? Áö¿ø | ? ¹ÌÁö¿ø | ? Zero-copy Áö¿ø |
-| **¾ç¹æÇâ ÅëÇÕ** | ? C#¡æPy¸¸ | ? ¾ç¹æÇâ | ? ¾ç¹æÇâ | ? C#¡æPy¸¸ |
-| **¼³Á¤ º¹Àâµµ** | ? ¸Å¿ì ½¬¿ò | ??? Áß°£ | ?? ½¬¿ò | ???? º¹Àâ |
-| **µ¥ÀÌÅÍ ±³È¯** | JSON ±â¹Ý | Á÷Á¢ °´Ã¼ | Á÷Á¢ °´Ã¼ | Á÷Á¢ °´Ã¼ + Zero-copy |
-| **¼º¼÷µµ** | ?? ½ÇÇèÀû | ? ¾ÈÁ¤ (15³â+) | ? ¾ÈÁ¤ | ?? ½Å±Ô (2024) |
+| Feature | **DotNetPy** | **DotWrap** | **CSnakes** | **pythonnet** | **IronPython** |
+| --------- | ------------- | ------------- | ------------- | --------------- | ---------------- |
+| **Direction** | C# â†’ Python | Python â†’ C# | C# â†’ Python | C# â†” Python | C# â†” Python |
+| **Python Version** | 3.8+ (CPython) | N/A (generates Py pkg) | 3.9-3.13 | 3.6+ | 3.4 (Custom impl) |
+| **.NET Version** | .NET 10+ | .NET 8+ | .NET 8-9 | .NET 6+ | .NET 6+ |
+| **Native AOT** | âœ… Supported | âœ… Generates AOT libs | âŒ Not supported | âŒ Not supported | âŒ Not supported |
+| **GIL Management** | Automatic (internal) | N/A | Automatic (internal) | Manual required | None (custom runtime) |
+| **Source Generator** | âŒ Not required | âœ… Required | âœ… Required | âŒ Not required | âŒ Not required |
+| **NumPy/Pandas** | âœ… Supported | N/A | âœ… Zero-copy | âœ… Supported | âŒ Not available |
+| **Bidirectional Calls** | C#â†’Py only | Pyâ†’C# only | C#â†’Py only | âœ… Bidirectional | âœ… Bidirectional |
+| **Learning Difficulty** | â­ Very Low | â­â­ Low | â­â­â­â­ High | â­â­â­ Medium | â­â­ Low |
+| **uv Integration** | âœ… Built-in | âŒ None | âœ… Supported | âŒ None | âŒ None |
+| **File-based App** | âœ… Supported | N/A | âŒ Not supported | âŒ Not supported | âŒ Not supported |
+| **Data Conversion** | JSON-based | CFFI (native) | Direct object + Zero-copy | Direct object | Direct object |
+| **Maturity** | ðŸ†• Experimental | ðŸ†• New | ðŸ†• New (2024) | âœ… Stable (15+ years) | âœ… Stable |
 
 ---
 
 ## 1. DotNetPy
 
-### Æ¯Â¡
-- **Zero Boilerplate**: GIL °ü¸®, Source Generator ¼³Á¤ ºÒÇÊ¿ä
-- **Native AOT ¿Ïº® Áö¿ø**: PublishAot=true·Î ³×ÀÌÆ¼ºê ¹ÙÀÌ³Ê¸® »ý¼º
-- **ÀÚµ¿ Python Å½»ö**: ½Ã½ºÅÛ, PATH, uv È¯°æ ÀÚµ¿ ¹ß°ß
-- **JSON ±â¹Ý ¸¶¼£¸µ**: ´Ü¼øÇÏÁö¸¸ º¹ÀâÇÑ °´Ã¼´Â Á¦ÇÑÀû
+> **Philosophy**: The lightest way to run Python from .NET
 
-### ÄÚµå ¿¹½Ã
+### Key Features
+
+- **Zero Boilerplate**: No GIL management or Source Generator setup required
+- **Native AOT Support**: Generate native binaries with `PublishAot=true`
+- **File-based App Support**: Perfect for .NET 10's `dotnet run script.cs` scenarios
+- **uv Integration**: Declarative Python environment management built into the library
+- **Automatic Python Discovery**: Auto-detection of system, PATH, and uv environments
+
+### Code Example
+
 ```csharp
 using DotNetPy;
 
-Python.Initialize();  // ÀÚµ¿ Python Å½»ö
+Python.Initialize();  // Automatic Python discovery
 var executor = Python.GetInstance();
 
-// ´Ü¼ø Æò°¡
+// Simple evaluation
 var result = executor.Evaluate("1 + 2 + 3")?.GetInt32();
 
-// µ¥ÀÌÅÍ Àü´Þ ¹× Ä¸Ã³
+// Data passing and capture
 var numbers = new[] { 1, 2, 3, 4, 5 };
 using var stats = executor.ExecuteAndCapture(@"
     result = {'sum': sum(numbers), 'mean': sum(numbers)/len(numbers)}
@@ -46,36 +54,210 @@ using var stats = executor.ExecuteAndCapture(@"
 Console.WriteLine(stats?.GetDouble("mean"));  // 3.0
 ```
 
-### ÀåÁ¡
-- °¡Àå ºü¸¥ ½ÃÀÛ (5ºÐ ÀÌ³»)
-- Native AOT ¹èÆ÷ °¡´É
-- ÃÖ¼ÒÇÑÀÇ ÇÐ½À °î¼±
+### Declarative Environment Management (uv)
 
-### ´ÜÁ¡
-- Python °´Ã¼ Á÷Á¢ Á¶ÀÛ ºÒ°¡
-- ¾ç¹æÇâ ÅëÇÕ ¹ÌÁö¿ø
-- ½ÇÇèÀû »óÅÂ
+```csharp
+using var project = PythonProject.CreateBuilder()
+    .WithProjectName("my-analysis")
+    .WithPythonVersion(">=3.10")
+    .AddDependencies("numpy>=1.24.0", "pandas>=2.0.0")
+    .Build();
 
-### ÀûÇÕÇÑ »ç¿ë »ç·Ê
-- ½ºÅ©¸³ÆÃ/ÀÚµ¿È­
-- Native AOT ¾Û¿¡¼­ Python È£Ãâ
-- °£´ÜÇÑ µ¥ÀÌÅÍ Ã³¸®
+await project.InitializeAsync();
+var executor = project.GetExecutor();
+```
+
+### Pros
+
+- Minimal barrier to entry (under 5 lines)
+- Native AOT support
+- File-based App (.NET 10) support
+- uv-based declarative environment management
+
+### Cons
+
+- Cannot directly manipulate Python objects
+- No bidirectional calls
+- Experimental stage
+
+### Recommended Use Cases
+
+- Scripting/automation
+- Python calls from Native AOT apps
+- File-based App scenarios
+- Simple data processing
 
 ---
 
-## 2. pythonnet (Python.NET)
+## 2. DotWrap
 
-### Æ¯Â¡
-- **¾ç¹æÇâ ÅëÇÕ**: C# ¡ê Python ¾ç¹æÇâ È£Ãâ Áö¿ø
-- **15³â ÀÌ»óÀÇ ¿ª»ç**: ¾ÈÁ¤ÀûÀÌ°í °ËÁõµÊ
-- **Á÷Á¢ °´Ã¼ Á¶ÀÛ**: `dynamic` Å°¿öµå·Î Python °´Ã¼ Á÷Á¢ »ç¿ë
-- **¼öµ¿ GIL °ü¸® ÇÊ¿ä**: `using (Py.GIL())` ÆÐÅÏ ÇÊ¼ö
+> **Philosophy**: Expose .NET AOT libraries to Python with auto-generated wrappers
 
-### ÄÚµå ¿¹½Ã
+**GitHub**: <https://github.com/connorivy/DotWrap>
+
+### Key Features of DotWrap
+
+- **Reverse Direction**: Python calls C# (opposite of DotNetPy)
+- **Native AOT Based**: Compiles C# to native code, no .NET runtime required at Python side
+- **Auto-generated Python Package**: Creates Python package with type hints and docstrings
+- **CPython Extension Module**: Uses CFFI for low-overhead native calls (~0.3Âµs per call)
+- **Source Generator**: Automatically generates interop code from `[DotWrapExpose]` attribute
+
+### Code Example of DotWrap
+
+**C# code (exposed to Python):**
+
+```csharp
+using DotWrap;
+
+namespace CoolCalc;
+
+[DotWrapExpose]  // Mark class for Python exposure
+public class Calculator
+{
+    public int Add(int a, int b) => a + b;
+}
+```
+
+**Build and publish:**
+
+```bash
+dotnet publish -r linux-x64  # Generates Python package
+```
+
+**Python usage:**
+
+```python
+import cool_calc
+
+calc = cool_calc.Calculator()
+print(calc.add(2, 3))  # Output: 5
+```
+
+### Comparison between DotWrap and DotNetPy
+
+| Aspect | DotNetPy | DotWrap |
+| -------- | ---------- | --------- |
+| **Direction** | C# â†’ Python | Python â†’ C# |
+| **Use Case** | Run Python code from .NET | Run .NET code from Python |
+| **Runtime Required** | Python runtime in .NET app | No .NET runtime in Python |
+| **Native AOT** | âœ… Supports AOT .NET apps | âœ… Generates AOT native libs |
+| **Package Generation** | N/A | Auto-generates Python package |
+| **Interop Mechanism** | Python C API | CFFI extension module |
+
+### Pros of DotWrap
+
+- No .NET runtime required for Python users
+- Native speed with CPython extension modules
+- Auto-generated type hints and docstrings
+- Very low call overhead (~0.3Âµs)
+
+### Cons of DotWrap
+
+- Opposite direction (Pythonâ†’C#, not C#â†’Python)
+- Requires publish step to generate Python package
+- Limited to exposing .NET types, not running Python code
+
+### Recommended Use Cases of DotWrap
+
+- Exposing high-performance C# libraries to Python
+- Creating Python packages from existing .NET code
+- When Python developers need to use .NET functionality
+
+> **Note**: DotWrap and DotNetPy serve **opposite purposes**. DotWrap is for calling C# from Python, while DotNetPy is for calling Python from C#. They are complementary, not competing libraries.
+
+---
+
+## 3. CSnakes
+
+> **Philosophy**: Type safety and high-performance AI/ML workloads
+
+**GitHub**: <https://github.com/tonybaloney/csnakes>
+
+### Key Features of CSnakes
+
+- **Source Generator**: Automatically generates C# interfaces from Python files
+- **Type Hint Based**: Creates strongly-typed C# methods from Python type hints
+- **Zero-copy**: Direct memory sharing for NumPy arrays
+- **Automatic GIL Management**: Internal synchronization handling
+- **Microsoft Sponsored**: Led by Anthony Shaw (Python team)
+
+### Code Example of CSnakes
+
+**Python file (`example.py`)**:
+
+```python
+def calculate_stats(numbers: list[int]) -> dict[str, float]:
+    import statistics
+    return {
+        "mean": statistics.mean(numbers),
+        "stdev": statistics.stdev(numbers)
+    }
+```
+
+**C# code**:
+
+```csharp
+// Use the class auto-generated by Source Generator
+using var env = Python.CreateEnvironment();
+var example = env.Example();  // Class generated from example.py
+
+var stats = example.CalculateStats(new[] { 1, 2, 3, 4, 5 });
+Console.WriteLine(stats["mean"]);  // 3.0
+```
+
+### Comparison between CSnakes and DotNetPy
+
+| Aspect | DotNetPy | CSnakes |
+| -------- | ---------- | --------- |
+| Setup Complexity | Very low | High (Source Generator required) |
+| Type Hints | Not required | Required |
+| Performance (NumPy) | Standard | Zero-copy (high performance) |
+| Native AOT | âœ… Supported | âŒ Not supported |
+| File-based App | âœ… Supported | âŒ Not supported |
+| uv Integration | âœ… Built-in | âœ… Supported |
+| Use Cases | Scripting/automation | AI/ML production |
+
+### Pros of CSnakes
+
+- Type-safe Python calls
+- NumPy Zero-copy (high performance)
+- Compile-time validation
+
+### Cons of CSnakes
+
+- Source Generator setup required
+- Type hints required in Python code
+- Steep learning curve
+- No Native AOT support
+
+### Recommended Use Cases of CSnakes
+
+- AI/ML production workloads
+- High-performance NumPy-based computations
+- Integration with large Python codebases
+
+---
+
+## 4. pythonnet (Python.NET)
+
+> **Philosophy**: Complete bidirectional interoperability
+
+**GitHub**: <https://github.com/pythonnet/pythonnet>
+
+### Key Features of pythonnet
+
+- **15+ Years of History**: Stable and proven
+- **Bidirectional Calls**: C# â†” Python bidirectional calls possible
+- **Direct Object Manipulation**: Use Python objects directly with `dynamic` keyword
+- **Manual GIL Management Required**: `using (Py.GIL())` pattern is mandatory
+
+### Code Example of pythonnet
+
 ```csharp
 using Python.Runtime;
 
-// GIL ¼öµ¿ °ü¸® ÇÊ¿ä
+// Manual GIL management required
 using (Py.GIL())
 {
     dynamic np = Py.Import("numpy");
@@ -91,7 +273,8 @@ using (Py.GIL())
 }
 ```
 
-### Python¿¡¼­ .NET È£Ãâ (¿ª¹æÇâ)
+### Calling .NET from Python (Reverse Direction)
+
 ```python
 import clr
 clr.AddReference("System.Windows.Forms")
@@ -102,34 +285,55 @@ form.Text = "Hello from Python!"
 Application.Run(form)
 ```
 
-### ÀåÁ¡
-- ¾ç¹æÇâ ÅëÇÕ (Python ¡ê .NET)
-- Python °´Ã¼ Á÷Á¢ Á¶ÀÛ (`dynamic`)
-- ¼º¼÷ÇÏ°í ¾ÈÁ¤Àû
-- Ç³ºÎÇÑ ¹®¼­¿Í Ä¿¹Â´ÏÆ¼
+### Comparison between pythonnet and DotNetPy
 
-### ´ÜÁ¡
-- GIL ¼öµ¿ °ü¸® ÇÊ¿ä
-- Native AOT ¹ÌÁö¿ø
-- ¼³Á¤ º¹Àâµµ Áß°£
-- `PYTHONNET_PYDLL` È¯°æº¯¼ö ¼³Á¤ ÇÊ¿ä
+| Aspect | DotNetPy | pythonnet |
+| -------- | ---------- | ----------- |
+| GIL Management | Automatic | Manual (`Py.GIL()`) |
+| Python Objects | Converted to values | Direct manipulation |
+| Bidirectional | âŒ C#â†’Py only | âœ… Full bidirectional |
+| Native AOT | âœ… Supported | âŒ Not supported |
+| File-based App | âœ… Supported | âŒ Not supported |
+| Learning Curve | Low | Medium |
+| Environment Management | uv integration | Manual |
 
-### ÀûÇÕÇÑ »ç¿ë »ç·Ê
-- Python¿¡¼­ .NET ¶óÀÌºê·¯¸® »ç¿ë
-- ±âÁ¸ Python ÄÚµåº£ÀÌ½º¿Í ±íÀº ÅëÇÕ
-- Python °´Ã¼ÀÇ Á÷Á¢ Á¶ÀÛÀÌ ÇÊ¿äÇÑ °æ¿ì
+### Pros of pythonnet
+
+- Bidirectional support (Python â†” .NET)
+- Direct Python object manipulation (`dynamic`)
+- Stable and proven
+- Rich documentation and community
+
+### Cons of pythonnet
+
+- Manual GIL management required
+- No Native AOT support
+- Medium entry difficulty
+- `PYTHONNET_PYDLL` environment variable setup required
+
+### Recommended Use Cases of pythonnet
+
+- Using .NET libraries from Python
+- Deep integration with complex Python codebases
+- When fine-grained control over Python objects is needed
 
 ---
 
-## 3. IronPython
+## 5. IronPython
 
-### Æ¯Â¡
-- **.NET¿¡¼­ Python Àç±¸Çö**: CPythonÀÌ ¾Æ´Ñ ÀÚÃ¼ Python ·±Å¸ÀÓ
-- **GIL ¾øÀ½**: .NET ½º·¹µå ¸ðµ¨ »ç¿ë
-- **¿ÏÀüÇÑ .NET ÅëÇÕ**: Python ÄÚµå°¡ MSIL·Î ÄÄÆÄÀÏ
-- **Python 3.4 ¼öÁØ**: ÃÖ½Å Python ±â´É ¹ÌÁö¿ø
+> **Philosophy**: .NET native Python runtime
 
-### ÄÚµå ¿¹½Ã
+**GitHub**: <https://github.com/IronLanguages/ironpython3>
+
+### Key Features of IronPython
+
+- **Python Reimplemented in .NET**: Custom Python runtime, not CPython
+- **No GIL**: Uses .NET threading model
+- **Native .NET Integration**: Python code compiles to MSIL
+- **Python 3.4 Level**: Latest Python features not supported
+
+### Code Example of IronPython
+
 ```csharp
 using IronPython.Hosting;
 using Microsoft.Scripting.Hosting;
@@ -137,131 +341,123 @@ using Microsoft.Scripting.Hosting;
 ScriptEngine engine = Python.CreateEngine();
 ScriptScope scope = engine.CreateScope();
 
-// º¯¼ö ¼³Á¤
+// Set variables
 scope.SetVariable("x", 10);
 scope.SetVariable("y", 20);
 
-// ½ÇÇà
+// Execute
 engine.Execute("result = x + y", scope);
 int result = scope.GetVariable<int>("result");
 Console.WriteLine(result);  // 30
 ```
 
-### ÀåÁ¡
-- GIL ¾øÀ½ ¡æ ¸ÖÆ¼½º·¹µù ÀÌÁ¡
-- .NET ³×ÀÌÆ¼ºê ÅëÇÕ
-- º°µµ Python ¼³Ä¡ ºÒÇÊ¿ä
+### Comparison between IronPython and DotNetPy
 
-### ´ÜÁ¡
-- **NumPy/Pandas »ç¿ë ºÒ°¡** (C È®Àå ¹ÌÁö¿ø)
-- Python 3.4 ¼öÁØ (3.x ¿ÏÀü Áö¿ø ¾ÆÁ÷ ¹Ì¿Ï¼º)
-- CPython »ýÅÂ°è¿Í È£È¯¼º ¹®Á¦
-- °³¹ß ¼Óµµ ´À¸²
+| Aspect | DotNetPy | IronPython |
+| -------- | ---------- | ------------ |
+| Python Runtime | CPython required | Built-in |
+| NumPy/Pandas | âœ… Available | âŒ Not available |
+| Python Version | 3.8+ | 3.4 (outdated) |
+| Multithreading | GIL limited | Free |
+| C Extensions | âœ… Supported | âŒ Not supported |
+| Native AOT | âœ… Supported | âŒ Not supported |
 
-### ÀûÇÕÇÑ »ç¿ë »ç·Ê
-- ¼ø¼ö Python ½ºÅ©¸³ÆÃ (.NET ¶óÀÌºê·¯¸®¿Í ÇÔ²²)
-- ¸ÖÆ¼½º·¹µùÀÌ Áß¿äÇÑ °æ¿ì
-- C È®ÀåÀÌ ÇÊ¿ä ¾ø´Â °£´ÜÇÑ ½ºÅ©¸³Æ®
+### Pros of IronPython
+
+- True multithreading without GIL
+- Native .NET integration
+- No external Python installation required
+
+### Cons of IronPython
+
+- **NumPy/Pandas not available** (C extension not supported)
+- Python 3.4 level (some 3.x features incomplete)
+- Limited compatibility with CPython ecosystem
+- Slower execution speed
+
+### Recommended Use Cases of IronPython
+
+- Pure Python scripting (with .NET libraries)
+- When multithreading is critical
+- Simple scripts without C extension dependencies
 
 ---
 
-## 4. CSnakes
+## Recommendations by Use Case
 
-### Æ¯Â¡
-- **Source Generator**: Python ÆÄÀÏ¿¡¼­ C# ÀÎÅÍÆäÀÌ½º ÀÚµ¿ »ý¼º
-- **Å¸ÀÔ ÈùÆ® ±â¹Ý**: Python Å¸ÀÔ ÈùÆ®·Î °­Å¸ÀÔ C# ¸Þ¼­µå »ý¼º
-- **Zero-copy ¹öÆÛ**: NumPy ¹è¿­ ¸Þ¸ð¸® Á÷Á¢ °øÀ¯
-- **GIL ÀÚµ¿ °ü¸®**: ³»ºÎ Àç±Í ¶ô ±¸Çö
-- **Microsoft ÈÄ¿ø**: Anthony Shaw (Python ÆÀ) ÁÖµµ
+| Use Case | Recommended Library | Reason |
+| ---------- | --------------------- | -------- |
+| **Rapid Prototyping** | **DotNetPy** | Zero boilerplate, quick start |
+| **Native AOT Apps** | **DotNetPy** | Only one with AOT support for C#â†’Python |
+| **File-based App (.NET 10)** | **DotNetPy** | `dotnet run script.cs` scenario support |
+| **AI/ML Production** | **CSnakes** | Zero-copy NumPy, type safety |
+| **Python â†” .NET Bidirectional** | **pythonnet** | Only one with full bidirectional support |
+| **Pure .NET Scripting** | **IronPython** | No CPython installation required |
+| **Expose C# to Python** | **DotWrap** | Auto-generate Python packages from .NET AOT |
+| **uv Environment Management** | **DotNetPy** | Declarative environment management built-in |
 
-### ÄÚµå ¿¹½Ã
+---
 
-**Python ÆÄÀÏ (`example.py`)**:
-```python
-def calculate_stats(numbers: list[int]) -> dict[str, float]:
-    import statistics
-    return {
-        "mean": statistics.mean(numbers),
-        "stdev": statistics.stdev(numbers)
-    }
-```
+## DotNetPy's Unique Value
 
-**C# ÄÚµå**:
+### Key Differentiators
+
+1. **Lowest Barrier to Entry**: Python execution possible in under 5 lines
+2. **Only Native AOT Support**: The only choice for .NET AOT scenarios
+3. **File-based App Support**: Perfect support for .NET 10's `dotnet run script.cs`
+4. **uv Integration**: Declarative Python environment management built into the library
+5. **Transparent Development**: Experimental status explicitly stated, AI-assisted development disclosed
+
+### Limitations (To Be Acknowledged)
+
+- Experimental stage, use caution in production
+- Cannot directly manipulate Python objects (compared to pythonnet)
+- No bidirectional calls
+- Lack of community/documentation (new project)
+
+---
+
+## Migration Guide
+
+### pythonnet â†’ DotNetPy
+
+**Before (pythonnet):**
+
 ```csharp
-// Source Generator°¡ ÀÚµ¿ »ý¼ºÇÑ Å¬·¡½º »ç¿ë
-using var env = Python.CreateEnvironment();
-var example = env.Example();  // example.py¿¡¼­ »ý¼ºµÈ Å¬·¡½º
+using Python.Runtime;
 
-var stats = example.CalculateStats(new[] { 1, 2, 3, 4, 5 });
-Console.WriteLine(stats["mean"]);  // 3.0
+Runtime.PythonDLL = "/path/to/python3.dll";
+PythonEngine.Initialize();
+
+using (Py.GIL())
+{
+    dynamic np = Py.Import("numpy");
+    dynamic result = np.sum(np.array(new[] { 1, 2, 3 }));
+    Console.WriteLine(result);
+}
+
+PythonEngine.Shutdown();
 ```
 
-### ÀåÁ¡
-- Å¸ÀÔ ¾ÈÀüÇÑ Python È£Ãâ
-- NumPy Zero-copy Áö¿ø
-- GIL ÀÚµ¿ °ü¸®
-- OpenTelemetry/·Î±ë ÅëÇÕ
-- °¡»óÈ¯°æ/Conda Áö¿ø
+**After (DotNetPy):**
 
-### ´ÜÁ¡
-- Source Generator ¼³Á¤ ÇÊ¿ä
-- Python ÆÄÀÏ¿¡ Å¸ÀÔ ÈùÆ® ÇÊ¼ö
-- Native AOT ¹ÌÁö¿ø
-- ºñ±³Àû ½Å±Ô ÇÁ·ÎÁ§Æ®
+```csharp
+using DotNetPy;
 
-### ÀûÇÕÇÑ »ç¿ë »ç·Ê
-- AI/ML ÆÄÀÌÇÁ¶óÀÎ
-- ´ë¿ë·® NumPy µ¥ÀÌÅÍ Ã³¸®
-- Å¸ÀÔ ¾ÈÀü¼ºÀÌ Áß¿äÇÑ ÇÁ·ÎÁ§Æ®
-- .NET Aspire ÅëÇÕ
+Python.Initialize();
+var executor = Python.GetInstance();
 
----
-
-## »ç¿ë »ç·Êº° ±ÇÀå ¶óÀÌºê·¯¸®
-
-| »ç¿ë »ç·Ê | ±ÇÀå | ÀÌÀ¯ |
-|-----------|------|------|
-| **ºü¸¥ ÇÁ·ÎÅäÅ¸ÀÌÇÎ** | DotNetPy | Zero boilerplate |
-| **Native AOT ¾Û** | DotNetPy | À¯ÀÏÇÑ AOT Áö¿ø |
-| **AI/ML ÆÄÀÌÇÁ¶óÀÎ** | CSnakes | Zero-copy NumPy |
-| **Python ¡ê .NET ¾ç¹æÇâ** | pythonnet | ¾ç¹æÇâ ÅëÇÕ |
-| **¼ø¼ö ½ºÅ©¸³ÆÃ** | IronPython | º°µµ Python ºÒÇÊ¿ä |
-| **±â¾÷/ÇÁ·Î´ö¼Ç** | pythonnet | ¼º¼÷ÇÏ°í ¾ÈÁ¤Àû |
-| **Å¸ÀÔ ¾ÈÀü¼º** | CSnakes | Source Generator |
-
----
-
-## ¼º´É ºñ±³ (°³³äÀû)
-
-```
-ÃÊ±âÈ­ ¼Óµµ:    IronPython > DotNetPy ? pythonnet > CSnakes
-½ÇÇà ¼Óµµ:      CSnakes ¡Ã pythonnet ? DotNetPy > IronPython*
-¸Þ¸ð¸® È¿À²:    CSnakes (zero-copy) > pythonnet ? DotNetPy > IronPython
-¼³Á¤ ½Ã°£:      DotNetPy < IronPython < pythonnet < CSnakes
-
-* IronPythonÀº C È®Àå ¹ÌÁö¿øÀ¸·Î NumPy µî »ç¿ë ºÒ°¡
+using var result = executor.ExecuteAndCapture(@"
+    import numpy as np
+    result = int(np.sum(np.array([1, 2, 3])))
+");
+Console.WriteLine(result?.GetInt32());
 ```
 
----
+### When NOT to Choose DotNetPy
 
-## °á·Ð
-
-### DotNetPy¸¦ ¼±ÅÃÇÏ¼¼¿ä:
-- °¡Àå ºü¸£°Ô PythonÀ» .NET¿¡¼­ ½ÇÇàÇÏ°í ½ÍÀ» ¶§
-- Native AOT°¡ ÇÊ¿äÇÒ ¶§
-- º¹ÀâÇÑ ¼³Á¤ ¾øÀÌ ½ÃÀÛÇÏ°í ½ÍÀ» ¶§
-
-### pythonnetÀ» ¼±ÅÃÇÏ¼¼¿ä:
-- Python¿¡¼­ .NETÀ» È£ÃâÇØ¾ß ÇÒ ¶§
-- ¼º¼÷ÇÏ°í °ËÁõµÈ ¼Ö·ç¼ÇÀÌ ÇÊ¿äÇÒ ¶§
-- Python °´Ã¼¸¦ Á÷Á¢ Á¶ÀÛÇØ¾ß ÇÒ ¶§
-
-### IronPythonÀ» ¼±ÅÃÇÏ¼¼¿ä:
-- º°µµ Python ¼³Ä¡ ¾øÀÌ ½ºÅ©¸³ÆÃÀÌ ÇÊ¿äÇÒ ¶§
-- GIL ¾ø´Â ¸ÖÆ¼½º·¹µùÀÌ ÇÊ¿äÇÒ ¶§
-- NumPy/Pandas°¡ ÇÊ¿ä ¾øÀ» ¶§
-
-### CSnakes¸¦ ¼±ÅÃÇÏ¼¼¿ä:
-- AI/ML ¿öÅ©·Îµå¸¦ .NET¿¡ ÅëÇÕÇÒ ¶§
-- NumPy ´ë¿ë·® µ¥ÀÌÅÍÀÇ Zero-copy°¡ Áß¿äÇÒ ¶§
-- Å¸ÀÔ ¾ÈÀüÇÑ Python È£ÃâÀÌ ÇÊ¿äÇÒ ¶§
+- âŒ When you need to directly manipulate Python objects â†’ **pythonnet**
+- âŒ When you need to call .NET code from Python â†’ **pythonnet**
+- âŒ When NumPy Zero-copy performance is critical â†’ **CSnakes**
+- âŒ When production stability is the top priority â†’ **pythonnet**
+- âŒ When you only need pure Python without C extensions â†’ **IronPython**
