@@ -479,6 +479,18 @@ _is_valid = '{EscapePythonString(name)}'.isidentifier() and not keyword.iskeywor
     /// </summary>
     /// <param name="code">The Python code to execute.</param>
     /// <exception cref="DotNetPyException">Thrown if an error occurs during Python execution.</exception>
+    /// <remarks>
+    /// <para>
+    /// <b>⚠️ SECURITY WARNING:</b> This method executes arbitrary Python code with the same privileges 
+    /// as the host .NET process. Never pass untrusted or user-provided input directly to this method.
+    /// Doing so may result in remote code execution (RCE) vulnerabilities.
+    /// </para>
+    /// <para>
+    /// Python code has unrestricted access to the file system, network, environment variables, 
+    /// and can execute system commands. Always ensure the code parameter contains only 
+    /// developer-controlled, trusted content.
+    /// </para>
+    /// </remarks>
     public void Execute(string code)
     {
         ThrowIfDisposed();
@@ -514,6 +526,17 @@ _is_valid = '{EscapePythonString(name)}'.isidentifier() and not keyword.iskeywor
     /// </summary>
     /// <param name="code">The Python code to execute.</param>
     /// <param name="variables">The variables to inject into Python (name: value).</param>
+    /// <remarks>
+    /// <para>
+    /// <b>⚠️ SECURITY WARNING:</b> This method executes arbitrary Python code with the same privileges 
+    /// as the host .NET process. Never pass untrusted or user-provided input as the <paramref name="code"/> parameter.
+    /// </para>
+    /// <para>
+    /// The <paramref name="variables"/> parameter is safe for user-provided data as values are serialized 
+    /// to JSON and injected as data, not code. However, the <paramref name="code"/> parameter must contain 
+    /// only developer-controlled, trusted content.
+    /// </para>
+    /// </remarks>
     public void Execute(string code, Dictionary<string, object?> variables)
     {
         ThrowIfDisposed();
@@ -684,6 +707,12 @@ _is_valid = '{EscapePythonString(name)}'.isidentifier() and not keyword.iskeywor
     /// <param name="code">The Python code to execute.</param>
     /// <param name="resultVariable">The name of the Python variable containing the result (default: "result").</param>
     /// <returns>A PyValue parsing the result of the Python script.</returns>
+    /// <remarks>
+    /// <para>
+    /// <b>⚠️ SECURITY WARNING:</b> This method executes arbitrary Python code with the same privileges 
+    /// as the host .NET process. Never pass untrusted or user-provided input as the <paramref name="code"/> parameter.
+    /// </para>
+    /// </remarks>
     public DotNetPyValue? ExecuteAndCapture(string code, string resultVariable = "result")
     {
         ThrowIfDisposed();
@@ -766,6 +795,16 @@ else:
     /// <param name="variables">The variables to inject into Python (name: value).</param>
     /// <param name="resultVariable">The name of the Python variable containing the result (default: "result").</param>
     /// <returns>A PyValue parsing the result of the Python script.</returns>
+    /// <remarks>
+    /// <para>
+    /// <b>⚠️ SECURITY WARNING:</b> This method executes arbitrary Python code with the same privileges 
+    /// as the host .NET process. Never pass untrusted or user-provided input as the <paramref name="code"/> parameter.
+    /// </para>
+    /// <para>
+    /// The <paramref name="variables"/> parameter is safe for user-provided data as values are serialized 
+    /// to JSON and injected as data, not code.
+    /// </para>
+    /// </remarks>
     public DotNetPyValue? ExecuteAndCapture(
         string code,
         Dictionary<string, object?> variables,
@@ -863,6 +902,12 @@ else:
     /// </summary>
     /// <param name="expression">The Python expression to evaluate (e.g., "1+1", "[1,2,3]").</param>
     /// <returns>A PyValue parsing the result of the expression.</returns>
+    /// <remarks>
+    /// <para>
+    /// <b>⚠️ SECURITY WARNING:</b> This method evaluates arbitrary Python expressions with the same privileges 
+    /// as the host .NET process. Never pass untrusted or user-provided input as the <paramref name="expression"/> parameter.
+    /// </para>
+    /// </remarks>
     public DotNetPyValue? Evaluate(string expression)
     {
         // Assign the expression to a result variable and execute
