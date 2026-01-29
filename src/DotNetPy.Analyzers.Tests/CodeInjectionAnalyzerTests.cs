@@ -4,8 +4,9 @@ using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Testing;
 using Microsoft.CodeAnalysis.Testing;
-using Xunit;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
+[TestClass]
 public class CodeInjectionAnalyzerTests
 {
     /// <summary>
@@ -43,7 +44,7 @@ namespace DotNetPy
 }
 ";
 
-    [Fact]
+    [TestMethod]
     public async Task StringLiteral_NoDiagnostic()
     {
         var source = @"
@@ -60,7 +61,7 @@ class Test
         await VerifyAnalyzerAsync(source);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task VerbatimStringLiteral_NoDiagnostic()
     {
         var source = @"
@@ -80,7 +81,7 @@ class Test
         await VerifyAnalyzerAsync(source);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task ConstField_NoDiagnostic()
     {
         var source = @"
@@ -99,7 +100,7 @@ class Test
         await VerifyAnalyzerAsync(source);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task Variable_ReportsDiagnostic()
     {
         var source = @"
@@ -120,7 +121,7 @@ class Test
         await VerifyAnalyzerAsync(source, expected);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task MethodReturnValue_ReportsDiagnostic()
     {
         var source = @"
@@ -143,7 +144,7 @@ class Test
         await VerifyAnalyzerAsync(source, expected);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task StringConcatenationWithVariable_ReportsDiagnostic()
     {
         var source = @"
@@ -164,7 +165,7 @@ class Test
         await VerifyAnalyzerAsync(source, expected);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task StringConcatenationOfConstants_NoDiagnostic()
     {
         var source = @"
@@ -181,7 +182,7 @@ class Test
         await VerifyAnalyzerAsync(source);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task InterpolatedStringWithVariable_ReportsDiagnostic()
     {
         var source = @"
@@ -202,7 +203,7 @@ class Test
         await VerifyAnalyzerAsync(source, expected);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task InterpolatedStringWithConstant_NoDiagnostic()
     {
         var source = @"
@@ -220,7 +221,7 @@ class Test
         await VerifyAnalyzerAsync(source);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task Evaluate_Variable_ReportsDiagnostic()
     {
         var source = @"
@@ -241,7 +242,7 @@ class Test
         await VerifyAnalyzerAsync(source, expected);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task ExecuteAndCapture_Variable_ReportsDiagnostic()
     {
         var source = @"
@@ -262,7 +263,7 @@ class Test
         await VerifyAnalyzerAsync(source, expected);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task ExecuteWithVariables_ConstantCode_NoDiagnostic()
     {
         var source = @"
@@ -282,7 +283,7 @@ class Test
         await VerifyAnalyzerAsync(source);
     }
 
-    [Fact]
+    [TestMethod]
     public async Task ExecuteWithVariables_VariableCode_ReportsDiagnostic()
     {
         var source = @"

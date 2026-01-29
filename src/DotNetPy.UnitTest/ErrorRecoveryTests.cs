@@ -310,7 +310,7 @@ result = failing_function()
         {
             // Should contain error information
             Assert.IsNotNull(ex.Message);
-            Assert.IsGreaterThan(0, ex.Message.Length);
+            Assert.IsTrue(ex.Message.Length > 0);
             // May contain function name or line info depending on Python error formatting
         }
     }

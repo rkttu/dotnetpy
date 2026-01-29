@@ -15,7 +15,7 @@ public sealed class PythonDiscoveryTests
         Assert.IsTrue(File.Exists(pythonInfo.ExecutablePath), $"Executable should exist: {pythonInfo.ExecutablePath}");
         Assert.IsNotNull(pythonInfo.LibraryPath);
         Assert.IsTrue(File.Exists(pythonInfo.LibraryPath), $"Library should exist: {pythonInfo.LibraryPath}");
-        Assert.IsGreaterThanOrEqualTo(3, pythonInfo.Version.Major, "Python version should be 3.x or higher");
+        Assert.IsTrue(pythonInfo.Version.Major >= 3, "Python version should be 3.x or higher");
 
         Console.WriteLine($"Found: {pythonInfo}");
         Console.WriteLine($"Library: {pythonInfo.LibraryPath}");

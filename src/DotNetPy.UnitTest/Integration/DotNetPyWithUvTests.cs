@@ -201,7 +201,7 @@ result = {
         Assert.IsNotNull(result);
         var major = result.GetInt32("major");
         Assert.IsNotNull(major);
-        Assert.IsGreaterThanOrEqualTo(3, major.Value, "Python 3.x expected");
+        Assert.IsTrue(major.Value >= 3, "Python 3.x expected");
         
         Console.WriteLine($"Python version from uv environment: {result.GetString("version")}");
     }

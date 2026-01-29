@@ -33,7 +33,7 @@ public sealed class UvCliTests
         var instructions = UvCli.InstallationInstructions;
 
         Assert.IsNotNull(instructions);
-        Assert.IsGreaterThan(0, instructions.Length);
+        Assert.IsTrue(instructions.Length > 0);
         Assert.Contains("uv", instructions);
         Console.WriteLine(instructions);
     }

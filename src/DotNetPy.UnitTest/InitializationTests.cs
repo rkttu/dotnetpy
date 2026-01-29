@@ -178,8 +178,8 @@ public sealed class InitializationTests
             var countAfterSecond = DotNetPyExecutor.ReferenceCount;
 
             // Assert
-            Assert.IsGreaterThanOrEqualTo(initialCount, countAfterFirst);
-            Assert.IsGreaterThan(countAfterFirst, countAfterSecond);
+            Assert.IsTrue(countAfterFirst >= initialCount);
+            Assert.IsTrue(countAfterSecond > countAfterFirst);
         }
         catch (DotNetPyException ex)
         {

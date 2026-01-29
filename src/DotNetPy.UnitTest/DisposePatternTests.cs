@@ -137,7 +137,7 @@ dispose_test_var2 = 'value2'
             Assert.IsFalse(executor.VariableExists("dispose_test_var1"));
             Assert.IsFalse(executor.VariableExists("dispose_test_var2"));
             var currentCount = DotNetPyExecutor.ReferenceCount;
-            Assert.IsGreaterThanOrEqualTo(0, currentCount);
+            Assert.IsTrue(currentCount >= 0);
         }
         catch (DotNetPyException ex)
         {
@@ -191,11 +191,11 @@ inner_b = 20
             // Getting the instance increments the reference count
             var executor1 = DotNetPyExecutor.GetInstance(pythonInfo.LibraryPath);
             var countAfterCreate = DotNetPyExecutor.ReferenceCount;
-            Assert.IsGreaterThan(initialCount, countAfterCreate);
+            Assert.IsTrue(countAfterCreate > initialCount);
 
             // Note: We don't dispose here to avoid breaking other tests
             // The reference count will be decremented when tests complete
-            Assert.IsGreaterThanOrEqualTo(1, countAfterCreate);
+            Assert.IsTrue(countAfterCreate >= 1);
         }
         catch (DotNetPyException ex)
         {

@@ -38,7 +38,7 @@
 
 	<!-- Source Link for debugging -->
 	<ItemGroup>
-		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
+		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.102" PrivateAssets="All" />
 	</ItemGroup>
 
 	<!-- Reference Analyzers project (build dependency only, not runtime) -->
@@ -52,11 +52,7 @@
 
 	<!-- Pack analyzer DLL into the NuGet package -->
 	<ItemGroup>
-		<None Include="..\DotNetPy.Analyzers\bin\$(Configuration)\netstandard2.0\DotNetPy.Analyzers.dll" 
-			  Pack="true" 
-			  PackagePath="analyzers\dotnet\cs" 
-			  Visible="false" 
-			  Condition="Exists('..\DotNetPy.Analyzers\bin\$(Configuration)\netstandard2.0\DotNetPy.Analyzers.dll')" />
+		<None Include="..\DotNetPy.Analyzers\bin\$(Configuration)\netstandard2.0\DotNetPy.Analyzers.dll" Pack="true" PackagePath="analyzers\dotnet\cs" Visible="false" Condition="Exists('..\DotNetPy.Analyzers\bin\$(Configuration)\netstandard2.0\DotNetPy.Analyzers.dll')" />
 	</ItemGroup>
 
 </Project>

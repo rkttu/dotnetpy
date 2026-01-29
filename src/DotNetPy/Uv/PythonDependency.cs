@@ -76,7 +76,7 @@ public sealed class PythonDependency
         if (extrasStart > 0 && extrasEnd > extrasStart)
         {
             var extrasStr = input.Substring(extrasStart + 1, extrasEnd - extrasStart - 1);
-            extras = extrasStr.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+            extras = [.. extrasStr.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
             input = input.Remove(extrasStart, extrasEnd - extrasStart + 1);
         }
 
@@ -104,5 +104,11 @@ public sealed class PythonDependency
         return new PythonDependency(name, version, extras);
     }
 
+    /// <summary>
+    /// Returns a string that represents the current object in PEP 508 format.
+    /// </summary>
+    /// <remarks>PEP 508 is a specification for dependency specification in Python packaging. The returned
+    /// string can be used for interoperability with tools that consume PEP 508 requirement strings.</remarks>
+    /// <returns>A string representation of the object formatted according to PEP 508.</returns>
     public override string ToString() => ToPep508String();
 }
