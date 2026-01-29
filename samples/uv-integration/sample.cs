@@ -1,5 +1,5 @@
 #!/usr/bin/env dotnet run
-#:project ..\..\DotNetPy\DotNetPy.csproj
+#:project ../../src/DotNetPy/DotNetPy.csproj
 
 // =============================================================================
 // DotNetPy + uv Integration Test
@@ -260,21 +260,21 @@ Console.WriteLine(new string('-', 50));
 try
 {
     executor.Execute("x = 1 / 0");
-    Console.WriteLine("  ? Should have thrown");
+    Console.WriteLine("  ! Should have thrown");
 }
-catch (DotNetPyException ex)
+catch (DotNetPyException)
 {
-    Console.WriteLine($"  ? Caught expected error: ZeroDivisionError");
+    Console.WriteLine($"  ! Caught expected error: ZeroDivisionError");
 }
 
 try
 {
     executor.Execute("undefined_variable");
-    Console.WriteLine("  ? Should have thrown");
+    Console.WriteLine("  ! Should have thrown");
 }
-catch (DotNetPyException ex)
+catch (DotNetPyException)
 {
-    Console.WriteLine($"  ? Caught expected error: NameError");
+    Console.WriteLine($"  ! Caught expected error: NameError");
 }
 
 Console.WriteLine();

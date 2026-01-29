@@ -1,0 +1,9 @@
+<Solution>
+  <Project Path="src/DotNetPy.Analyzers.Tests/DotNetPy.Analyzers.Tests.csproj" />
+  <Project Path="src/DotNetPy.Analyzers/DotNetPy.Analyzers.csproj" />
+  <Project Path="src/DotNetPy.Native.Shared/DotNetPy.Native.Shared.csproj" />
+  <Project Path="src/DotNetPy.Native.Static/DotNetPy.Native.Static.csproj" />
+  <Project Path="src/DotNetPy.Sample/DotNetPy.Sample.csproj" Id="4a18882c-3028-4c7c-b1b1-37c8ae456641" />
+  <Project Path="src/DotNetPy.UnitTest/DotNetPy.UnitTest.csproj" Id="d9c9ee3a-0e65-47f5-95d3-6ec49d4b21cf" />
+  <Project Path="src/DotNetPy/DotNetPy.csproj" />
+</Solution>

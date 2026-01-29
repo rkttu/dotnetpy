@@ -4,7 +4,7 @@
 #:property LangVersion=preview
 #:property ImplicitUsings=enable
 #:property Nullable=enable
-#:project ..\..\DotNetPy\DotNetPy.csproj
+#:project ../../src/DotNetPy/DotNetPy.csproj
 
 // =============================================================================
 // DotNetPy Declarative Python Environment Sample
@@ -22,10 +22,10 @@
 //
 // =============================================================================
 
-using DotNetPy;
 using DotNetPy.Uv;
 
-Console.WriteLine("=== DotNetPy Declarative Python Environment Sample ===\n");
+Console.WriteLine("=== DotNetPy Declarative Python Environment Sample ===");
+Console.WriteLine();
 
 // -----------------------------------------------------------------------------
 // Step 1: Check if uv is available
@@ -61,7 +61,7 @@ Console.WriteLine(new string('-', 50));
 //   - This temporary directory is DELETED when Dispose() is called.
 //
 // To persist the project to a specific location, use WithWorkingDirectory():
-//   .WithWorkingDirectory(@"D:\MyPythonProjects\my-project")
+//   .WithWorkingDirectory(@"./MyPythonProjects/my-project")
 //
 // When using WithWorkingDirectory():
 //   - The specified directory is used (created if it doesn't exist).
@@ -76,7 +76,7 @@ using var project = PythonProject.CreateBuilder()
     .AddDependencies("numpy>=1.24.0", "pandas>=2.0.0")
     .AddDevDependency("pytest", ">=7.0.0")
     .WithUvSetting("python-preference", "only-managed")
-    // .WithWorkingDirectory(@"D:\MyPythonProjects\persistent-env")  // Uncomment to persist
+    // .WithWorkingDirectory(@"./MyPythonProjects/persistent-env")  // Uncomment to persist
     .Build();
 
 Console.WriteLine($"  Project Name: {project.ProjectName}");
