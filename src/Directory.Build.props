@@ -1,0 +1,32 @@
+<Project>
+
+  <!-- Common version information -->
+  <PropertyGroup>
+    <Version>0.5.0</Version>
+    <Authors>rkttu</Authors>
+    <Company>rkttu</Company>
+    <Product>DotNetPy</Product>
+    <Copyright>Copyright (c) 2024 rkttu</Copyright>
+    <PackageProjectUrl>https://github.com/rkttu/dotnetpy</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/rkttu/dotnetpy</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageIcon>dotnetpy.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <!-- Source Link settings -->
+  <PropertyGroup>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <!-- Common package files -->
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)..\dotnetpy.png" Pack="true" PackagePath="\" />
+    <None Include="$(MSBuildThisFileDirectory)..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

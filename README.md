@@ -1,4 +1,9 @@
+<!-- markdownlint-disable MD033 -->
+<!-- markdownlint-disable MD041 -->
+
 # DotNetPy
+
+<img src="https://raw.githubusercontent.com/rkttu/dotnetpy/main/dotnetpy.png" alt="DotNetPy Logo" width="120" />
 
 **Python interop, reimagined for modern .NET** ✨
 
@@ -23,13 +28,13 @@ DotNetPy (pronounced `dot-net-pie`) is a .NET library that allows you to seamles
 
 | Document | Description |
 | ---------- | ------------- |
-| [Usage Examples](docs/USAGE.md) | Detailed code examples and patterns |
-| [Security Guide](docs/SECURITY.md) | Security considerations and safe usage |
-| [uv Integration](docs/UV-INTEGRATION.md) | Declarative Python environment management |
-| [Performance](docs/PERFORMANCE.md) | Thread safety and concurrency characteristics |
-| [Comparison](docs/COMPARISON.md) | How DotNetPy compares to pythonnet and CSnakes |
-| [Testing](docs/TESTING.md) | Running integration tests |
-| [**Code Samples**](samples/) | Runnable sample applications |
+| [Usage Examples](https://github.com/rkttu/dotnetpy/blob/main/docs/USAGE.md) | Detailed code examples and patterns |
+| [Security Guide](https://github.com/rkttu/dotnetpy/blob/main/docs/SECURITY.md) | Security considerations and safe usage |
+| [uv Integration](https://github.com/rkttu/dotnetpy/blob/main/docs/UV-INTEGRATION.md) | Declarative Python environment management |
+| [Performance](https://github.com/rkttu/dotnetpy/blob/main/docs/PERFORMANCE.md) | Thread safety and concurrency characteristics |
+| [Comparison](https://github.com/rkttu/dotnetpy/blob/main/docs/COMPARISON.md) | How DotNetPy compares to pythonnet and CSnakes |
+| [Testing](https://github.com/rkttu/dotnetpy/blob/main/docs/TESTING.md) | Running integration tests |
+| [**Code Samples**](https://github.com/rkttu/dotnetpy/tree/main/samples) | Runnable sample applications |
 
 ## Project Philosophy
 
@@ -89,7 +94,7 @@ executor.Execute("result = sum(numbers)", new Dictionary<string, object?> { { "n
 
 DotNetPy includes a built-in Roslyn analyzer that detects potential code injection at compile time.
 
-📖 **[Full Security Guide →](docs/SECURITY.md)**
+📖 **[Full Security Guide →](https://github.com/rkttu/dotnetpy/blob/main/docs/SECURITY.md)**
 
 ## Features
 
@@ -157,17 +162,17 @@ using var stats = executor.ExecuteAndCapture(@"
 ", new Dictionary<string, object?> { { "data", numbers } });
 ```
 
-📖 **[Full Usage Examples →](docs/USAGE.md)**
+📖 **[Full Usage Examples →](https://github.com/rkttu/dotnetpy/blob/main/docs/USAGE.md)**
 
 ## Comparison with Other Libraries
 
-Wondering how DotNetPy compares to pythonnet or CSnakes? Check out our [detailed comparison guide](docs/COMPARISON.md) to understand the differences and choose the right tool for your needs.
+Wondering how DotNetPy compares to pythonnet or CSnakes? Check out our [detailed comparison guide](https://github.com/rkttu/dotnetpy/blob/main/docs/COMPARISON.md) to understand the differences and choose the right tool for your needs.
 
 ## Performance and Concurrency
 
 DotNetPy is **thread-safe** through Python's Global Interpreter Lock (GIL). Best suited for sequential execution, I/O-bound operations, and low-to-moderate concurrency scenarios.
 
-📖 **[Performance & Concurrency Details →](docs/PERFORMANCE.md)**
+📖 **[Performance & Concurrency Details →](https://github.com/rkttu/dotnetpy/blob/main/docs/PERFORMANCE.md)**
 
 ## uv Integration
 
@@ -191,17 +196,17 @@ var executor = project.GetExecutor();
 executor.Execute("import numpy as np; print(np.mean([1,2,3]))");
 ```
 
-📖 **[Full uv Integration Guide →](docs/UV-INTEGRATION.md)**
+📖 **[Full uv Integration Guide →](https://github.com/rkttu/dotnetpy/blob/main/docs/UV-INTEGRATION.md)**
 
 ## Samples
 
-Ready-to-run sample applications are available in the [`samples/`](samples/) directory:
+Ready-to-run sample applications are available in the [`samples/`](https://github.com/rkttu/dotnetpy/tree/main/samples) directory:
 
 | Sample | Description |
-|--------|-------------|
-| [quickstart](samples/quickstart/) | Minimal example - .NET ↔ Python data flow |
-| [uv-integration](samples/uv-integration/) | Comprehensive test with uv-managed Python |
-| [declarative-python](samples/declarative-python/) | Declarative environment setup with PythonProjectBuilder |
+| -------- | ------------- |
+| [quickstart](https://github.com/rkttu/dotnetpy/tree/main/samples/quickstart) | Minimal example - .NET ↔ Python data flow |
+| [uv-integration](https://github.com/rkttu/dotnetpy/tree/main/samples/uv-integration) | Comprehensive test with uv-managed Python |
+| [declarative-python](https://github.com/rkttu/dotnetpy/tree/main/samples/declarative-python) | Declarative environment setup with PythonProjectBuilder |
 
 ```bash
 # Run the quickstart sample
@@ -209,11 +214,11 @@ cd samples/quickstart
 dotnet run quickstart.cs
 ```
 
-📖 **[All Samples →](samples/)**
+📖 **[All Samples →](https://github.com/rkttu/dotnetpy/tree/main/samples)**
 
 ## Integration Tests
 
-📖 **[Testing Guide →](docs/TESTING.md)**
+📖 **[Testing Guide →](https://github.com/rkttu/dotnetpy/blob/main/docs/TESTING.md)**
 
 ## Roadmap
 
@@ -227,4 +232,4 @@ The following features are planned for future releases:
 
 ## License
 
-This project is licensed under the Apache License 2.0. Please see the [LICENSE.txt](LICENSE.txt) file for details.
+This project is licensed under the Apache License 2.0. Please see the [LICENSE.txt](https://github.com/rkttu/dotnetpy/blob/main/LICENSE.txt) file for details.

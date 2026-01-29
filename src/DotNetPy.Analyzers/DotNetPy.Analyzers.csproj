@@ -18,6 +18,7 @@
     <PackageId>DotNetPy.Analyzers</PackageId>
     <Description>Roslyn analyzers for DotNetPy to detect potential code injection vulnerabilities</Description>
     <PackageTags>analyzers;dotnetpy;security;python</PackageTags>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
