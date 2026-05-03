@@ -118,7 +118,7 @@ public static class UvCli
         string? workingDirectory = null,
         CancellationToken cancellationToken = default)
     {
-        return await RunCommandAsync("uv", arguments, workingDirectory, cancellationToken);
+        return await RunCommandAsync("uv", arguments, workingDirectory, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -127,11 +127,15 @@ public static class UvCli
     /// <param name="arguments">The arguments to pass to uv.</param>
     /// <param name="workingDirectory">The working directory for the command.</param>
     /// <returns>A tuple containing success status, output, and error.</returns>
+    /// <remarks>
+    /// The async work runs on a thread-pool thread to avoid sync-over-async deadlocks
+    /// when called from threads that carry a SynchronizationContext (e.g. UI threads).
+    /// </remarks>
     public static (bool Success, string Output, string Error) Run(
         string arguments,
         string? workingDirectory = null)
     {
-        return RunAsync(arguments, workingDirectory).GetAwaiter().GetResult();
+        return Task.Run(() => RunAsync(arguments, workingDirectory)).GetAwaiter().GetResult();
     }
 
     /// <summary>
@@ -174,7 +178,7 @@ public static class UvCli
             if (process == null)
                 return false;
 
-            await process.WaitForExitAsync(cancellationToken);
+            await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
 
             // Reset cached availability
             _isAvailable = null;
@@ -213,10 +217,10 @@ public static class UvCli
             var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
             var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
 
-            await process.WaitForExitAsync(cancellationToken);
+            await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
 
-            var output = await outputTask;
-            var error = await errorTask;
+            var output = await outputTask.ConfigureAwait(false);
+            var error = await errorTask.ConfigureAwait(false);
 
             return (process.ExitCode == 0, output, error);
         }

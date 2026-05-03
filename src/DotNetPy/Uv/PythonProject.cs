@@ -129,10 +129,10 @@ public sealed class PythonProject : IDisposable
         // Generate and write pyproject.toml
         var pyprojectPath = Path.Combine(_workingDirectory, "pyproject.toml");
         var tomlContent = GeneratePyProjectToml();
-        await File.WriteAllTextAsync(pyprojectPath, tomlContent, cancellationToken);
+        await File.WriteAllTextAsync(pyprojectPath, tomlContent, cancellationToken).ConfigureAwait(false);
 
         // Initialize uv project and sync dependencies
-        var syncResult = await UvCli.RunAsync("sync", _workingDirectory, cancellationToken);
+        var syncResult = await UvCli.RunAsync("sync", _workingDirectory, cancellationToken).ConfigureAwait(false);
         if (!syncResult.Success)
         {
             throw new DotNetPyException(
@@ -141,7 +141,7 @@ public sealed class PythonProject : IDisposable
 
         // Set up paths
         _venvPath = Path.Combine(_workingDirectory, ".venv");
-        SetPythonPaths();
+        await SetPythonPathsAsync(cancellationToken).ConfigureAwait(false);
 
         if (!File.Exists(_pythonExecutable))
         {
@@ -156,9 +156,14 @@ public sealed class PythonProject : IDisposable
     /// Initializes the Python environment synchronously.
     /// </summary>
     /// <exception cref="DotNetPyException">Thrown when initialization fails.</exception>
+    /// <remarks>
+    /// The async work runs on a thread-pool thread to avoid sync-over-async deadlocks
+    /// when called from threads that carry a SynchronizationContext (e.g. UI threads).
+    /// Prefer <see cref="InitializeAsync(CancellationToken)"/> in async-friendly code paths.
+    /// </remarks>
     public void Initialize()
     {
-        InitializeAsync().GetAwaiter().GetResult();
+        Task.Run(() => InitializeAsync()).GetAwaiter().GetResult();
     }
 
     /// <summary>
@@ -176,7 +181,7 @@ public sealed class PythonProject : IDisposable
         if (string.IsNullOrWhiteSpace(packageList))
             return;
 
-        var result = await UvCli.RunAsync($"add {packageList}", _workingDirectory, cancellationToken);
+        var result = await UvCli.RunAsync($"add {packageList}", _workingDirectory, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
         {
             throw new DotNetPyException($"Failed to install packages: {result.Error}");
@@ -187,9 +192,13 @@ public sealed class PythonProject : IDisposable
     /// Installs additional packages into the environment.
     /// </summary>
     /// <param name="packages">The packages to install.</param>
+    /// <remarks>
+    /// The async work runs on a thread-pool thread to avoid sync-over-async deadlocks
+    /// when called from threads that carry a SynchronizationContext (e.g. UI threads).
+    /// </remarks>
     public void InstallPackages(params string[] packages)
     {
-        InstallPackagesAsync(packages).GetAwaiter().GetResult();
+        Task.Run(() => InstallPackagesAsync(packages)).GetAwaiter().GetResult();
     }
 
     /// <summary>
@@ -214,8 +223,10 @@ public sealed class PythonProject : IDisposable
                 $"Python library not found. Expected at: {_pythonLibrary}");
         }
 
-        // Set up virtual environment paths before initialization
-        SetupVirtualEnvironment();
+        // Set up virtual environment paths before initialization.
+        // Run on the thread pool to avoid sync-over-async deadlocks when the caller
+        // holds a SynchronizationContext (e.g. UI threads).
+        Task.Run(() => SetupVirtualEnvironmentAsync()).GetAwaiter().GetResult();
 
         var executor = DotNetPyExecutor.GetInstance(_pythonLibrary, null);
 
@@ -247,7 +258,7 @@ public sealed class PythonProject : IDisposable
     /// <summary>
     /// Sets up environment variables for the virtual environment.
     /// </summary>
-    private void SetupVirtualEnvironment()
+    private async Task SetupVirtualEnvironmentAsync(CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(_venvPath) || !Directory.Exists(_venvPath))
             return;
@@ -269,7 +280,7 @@ public sealed class PythonProject : IDisposable
 
         // Set PYTHONHOME to the virtual environment
         // This ensures Python uses the venv's site-packages
-        var pythonHome = GetPythonHome();
+        var pythonHome = await GetPythonHomeAsync(cancellationToken).ConfigureAwait(false);
         if (!string.IsNullOrEmpty(pythonHome))
         {
             Environment.SetEnvironmentVariable("PYTHONHOME", pythonHome);
@@ -279,17 +290,18 @@ public sealed class PythonProject : IDisposable
     /// <summary>
     /// Gets the Python home directory from the virtual environment.
     /// </summary>
-    private string? GetPythonHome()
+    private async Task<string?> GetPythonHomeAsync(CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(_pythonExecutable) || !File.Exists(_pythonExecutable))
             return null;
 
         try
         {
-            var result = UvCli.RunCommandAsync(
+            var result = await UvCli.RunCommandAsync(
                 _pythonExecutable,
                 "-c \"import sys; print(sys.prefix)\"",
-                _workingDirectory).GetAwaiter().GetResult();
+                _workingDirectory,
+                cancellationToken).ConfigureAwait(false);
 
             if (result.Success)
             {
@@ -320,8 +332,8 @@ public sealed class PythonProject : IDisposable
         var scriptPath = Path.Combine(_workingDirectory, $"_script_{Guid.NewGuid():N}.py");
         try
         {
-            await File.WriteAllTextAsync(scriptPath, script, cancellationToken);
-            return await UvCli.RunAsync($"run python \"{scriptPath}\"", _workingDirectory, cancellationToken);
+            await File.WriteAllTextAsync(scriptPath, script, cancellationToken).ConfigureAwait(false);
+            return await UvCli.RunAsync($"run python \"{scriptPath}\"", _workingDirectory, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -350,7 +362,7 @@ public sealed class PythonProject : IDisposable
         ThrowIfDisposed();
         EnsureInitialized();
 
-        return await UvCli.RunAsync($"run python {pythonArgs}", _workingDirectory, cancellationToken);
+        return await UvCli.RunAsync($"run python {pythonArgs}", _workingDirectory, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -389,7 +401,7 @@ public sealed class PythonProject : IDisposable
         return builder.GeneratePyProjectToml();
     }
 
-    private void SetPythonPaths()
+    private async Task SetPythonPathsAsync(CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(_venvPath))
             return;
@@ -404,10 +416,10 @@ public sealed class PythonProject : IDisposable
         }
 
         // Try to find Python library
-        _pythonLibrary = FindPythonLibrary();
+        _pythonLibrary = await FindPythonLibraryAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private string? FindPythonLibrary()
+    private async Task<string?> FindPythonLibraryAsync(CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(_pythonExecutable) || !File.Exists(_pythonExecutable))
             return null;
@@ -415,10 +427,11 @@ public sealed class PythonProject : IDisposable
         try
         {
             // Use Python to find its library path
-            var result = UvCli.RunCommandAsync(
+            var result = await UvCli.RunCommandAsync(
                 _pythonExecutable,
                 "-c \"import sys; import os; v = sys.version_info; print(os.path.join(sys.base_prefix, f'python{v.major}{v.minor}.dll' if sys.platform == 'win32' else f'lib/libpython{v.major}.{v.minor}.so'))\"",
-                _workingDirectory).GetAwaiter().GetResult();
+                _workingDirectory,
+                cancellationToken).ConfigureAwait(false);
 
             if (result.Success)
             {
@@ -431,10 +444,11 @@ public sealed class PythonProject : IDisposable
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 // Check base prefix directory
-                var basePrefixResult = UvCli.RunCommandAsync(
+                var basePrefixResult = await UvCli.RunCommandAsync(
                     _pythonExecutable,
                     "-c \"import sys; print(sys.base_prefix)\"",
-                    _workingDirectory).GetAwaiter().GetResult();
+                    _workingDirectory,
+                    cancellationToken).ConfigureAwait(false);
 
                 if (basePrefixResult.Success)
                 {
