@@ -2,7 +2,7 @@
 
   <!-- Common version information -->
   <PropertyGroup>
-    <Version>0.5.1</Version>
+    <Version>0.5.2</Version>
     <Authors>rkttu</Authors>
     <Company>rkttu</Company>
     <Product>DotNetPy</Product>
