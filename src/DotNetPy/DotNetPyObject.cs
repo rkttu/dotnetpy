@@ -15,8 +15,16 @@ internal sealed class DotNetPyObject : SafeHandle
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void PyIncRefDelegate(IntPtr obj);
 
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate IntPtr PyGILStateEnsureDelegate();
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void PyGILStateReleaseDelegate(IntPtr state);
+
     private static PyDecRefDelegate? _pyDecRef;
     private static PyIncRefDelegate? _pyIncRef;
+    private static PyGILStateEnsureDelegate? _pyGILStateEnsure;
+    private static PyGILStateReleaseDelegate? _pyGILStateRelease;
 
     /// <summary>
     /// Initializes the reference counting functions from the Python library.
@@ -26,6 +34,8 @@ internal sealed class DotNetPyObject : SafeHandle
     {
         _pyDecRef = NativeMethods.LoadFunction<PyDecRefDelegate>(libraryHandle, "Py_DecRef");
         _pyIncRef = NativeMethods.LoadFunction<PyIncRefDelegate>(libraryHandle, "Py_IncRef");
+        _pyGILStateEnsure = NativeMethods.LoadFunction<PyGILStateEnsureDelegate>(libraryHandle, "PyGILState_Ensure");
+        _pyGILStateRelease = NativeMethods.LoadFunction<PyGILStateReleaseDelegate>(libraryHandle, "PyGILState_Release");
     }
 
     /// <summary>
@@ -82,12 +92,41 @@ internal sealed class DotNetPyObject : SafeHandle
     /// This method is called by the runtime when the object is finalized.
     /// It decrements the Python object's reference count.
     /// </summary>
+    /// <remarks>
+    /// SafeHandle finalizers run on the .NET finalizer thread, which is NOT attached
+    /// to the Python interpreter and does NOT hold the GIL. Calling Py_DecRef in that
+    /// state is unsafe under classic GIL builds (a refcount drop to 0 fires Python
+    /// __del__ code in an unattached thread) and remains unsafe under free-threaded
+    /// builds (Py_DecRef itself is atomic in PEP 703 but __del__ still requires an
+    /// attached thread state). Acquire the GIL via PyGILState_Ensure first; on
+    /// free-threaded builds this still attaches a valid thread state cheaply.
+    /// </remarks>
     /// <returns>true if the handle is released successfully; otherwise, false.</returns>
     protected override bool ReleaseHandle()
     {
-        if (!IsInvalid)
-            _pyDecRef!(handle);
+        if (IsInvalid || _pyDecRef is null)
+            return true;
 
+        // If GIL helpers are unavailable (e.g. extremely early shutdown or a partial
+        // initialization), fall back to a bare Py_DecRef — it is no worse than the
+        // pre-fix behaviour and avoids leaking the handle entirely.
+        var ensure = _pyGILStateEnsure;
+        var release = _pyGILStateRelease;
+        if (ensure is null || release is null)
+        {
+            _pyDecRef(handle);
+            return true;
+        }
+
+        IntPtr gilState = ensure();
+        try
+        {
+            _pyDecRef(handle);
+        }
+        finally
+        {
+            release(gilState);
+        }
         return true;
     }
 }

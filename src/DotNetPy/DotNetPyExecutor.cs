@@ -34,6 +34,19 @@ public sealed partial class DotNetPyExecutor : IDisposable
     private static IntPtr _libraryHandle = IntPtr.Zero;
     private volatile bool _disposed = false;
 
+    // Monotonic counter used to mint unique names for internal temporary variables
+    // injected into Python's __main__ globals. With free-threaded Python (PEP 703)
+    // the GIL no longer serializes interpreter operations, so two concurrent
+    // executor calls would otherwise race on shared, fixed names like _json_result.
+    private static long _tempVarCounter = 0;
+
+    /// <summary>
+    /// Mints a unique Python identifier for an internal temporary variable so that
+    /// concurrent calls cannot collide on the same name in __main__ globals.
+    /// </summary>
+    private static string MakeInternalName(string baseName)
+        => $"_dotnetpy_{baseName}_{Interlocked.Increment(ref _tempVarCounter):x}";
+
     // Python C API function pointer delegates
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void PyInitializeDelegate();
@@ -410,10 +423,15 @@ del _venv_site
 
         using var gil = new GilLock();
 
+        // Use a per-call unique name so concurrent free-threaded callers don't
+        // collide on the same slot in __main__ globals.
+        string flagVar = MakeInternalName("is_valid");
+        string escaped = EscapePythonString(name);
+
         // Use Python's str.isidentifier() and keyword.iskeyword()
         string validationCode = $@"
 import keyword
-_is_valid = '{EscapePythonString(name)}'.isidentifier() and not keyword.iskeyword('{EscapePythonString(name)}')
+{flagVar} = '{escaped}'.isidentifier() and not keyword.iskeyword('{escaped}')
 ";
 
         try
@@ -434,8 +452,8 @@ _is_valid = '{EscapePythonString(name)}'.isidentifier() and not keyword.iskeywor
             if (globals == null || globals.IsInvalid)
                 return false;
 
-            // Get the _is_valid variable (borrowed reference)
-            using var isValidObj = DotNetPyObject.FromBorrowedReference(_pyDictGetItemString!(globals.DangerousGetHandle(), "_is_valid"));
+            // Get the validation flag variable (borrowed reference)
+            using var isValidObj = DotNetPyObject.FromBorrowedReference(_pyDictGetItemString!(globals.DangerousGetHandle(), flagVar));
             if (isValidObj == null || isValidObj.IsInvalid)
                 return false;
 
@@ -452,7 +470,7 @@ _is_valid = '{EscapePythonString(name)}'.isidentifier() and not keyword.iskeywor
             // Clean up the temporary variable
             try
             {
-                _pyRunSimpleString!("del _is_valid");
+                _pyRunSimpleString!($"del {flagVar}");
             }
             catch
             {
@@ -722,6 +740,9 @@ _is_valid = '{EscapePythonString(name)}'.isidentifier() and not keyword.iskeywor
         // Normalize indentation
         code = NormalizePythonCode(code);
 
+        // Per-call unique sink name so free-threaded concurrent calls don't race.
+        string sinkVar = MakeInternalName("json_result");
+
         // Extract result via JSON serialization
         string wrapperCode = $@"
 import json
@@ -731,9 +752,9 @@ import json
 
 # Serialize the result to JSON
 if '{resultVariable}' in locals() or '{resultVariable}' in globals():
-    _json_result = json.dumps({resultVariable}, ensure_ascii=False, default=str)
+    {sinkVar} = json.dumps({resultVariable}, ensure_ascii=False, default=str)
 else:
-    _json_result = 'null'
+    {sinkVar} = 'null'
 ";
 
         // Get the globals dictionary of the __main__ module
@@ -758,8 +779,8 @@ else:
 
         try
         {
-            // Extract the JSON string from the _json_result variable (borrowed reference)
-            using var jsonResultObj = DotNetPyObject.FromBorrowedReference(_pyDictGetItemString!(globals, "_json_result"));
+            // Extract the JSON string from the sink variable (borrowed reference)
+            using var jsonResultObj = DotNetPyObject.FromBorrowedReference(_pyDictGetItemString!(globals, sinkVar));
             if (jsonResultObj == null || jsonResultObj.IsInvalid)
             {
                 return null;
@@ -784,7 +805,7 @@ else:
         finally
         {
             // Clean up the temporary variable
-            CleanupTemporaryVariable("_json_result");
+            CleanupTemporaryVariable(sinkVar);
         }
     }
 
@@ -817,6 +838,9 @@ else:
         // Normalize indentation
         code = NormalizePythonCode(code);
 
+        // Per-call unique sink name so free-threaded concurrent calls don't race.
+        string sinkVar = MakeInternalName("json_result");
+
         // Generate Python code by serializing variables to JSON (using Base64 encoding)
         var variableCode = new StringBuilder(variables.Count * 100);
 
@@ -840,9 +864,9 @@ import base64
 
 # Serialize the result to JSON
 if '{resultVariable}' in locals() or '{resultVariable}' in globals():
-    _json_result = json.dumps({resultVariable}, ensure_ascii=False, default=str)
+    {sinkVar} = json.dumps({resultVariable}, ensure_ascii=False, default=str)
 else:
-    _json_result = 'null'
+    {sinkVar} = 'null'
 ";
 
         // Get the globals dictionary of the __main__ module
@@ -867,8 +891,8 @@ else:
 
         try
         {
-            // Extract the JSON string from the _json_result variable (borrowed reference)
-            using var jsonResultObj = DotNetPyObject.FromBorrowedReference(_pyDictGetItemString!(globals, "_json_result"));
+            // Extract the JSON string from the sink variable (borrowed reference)
+            using var jsonResultObj = DotNetPyObject.FromBorrowedReference(_pyDictGetItemString!(globals, sinkVar));
             if (jsonResultObj == null || jsonResultObj.IsInvalid)
             {
                 return null;
@@ -893,7 +917,7 @@ else:
         finally
         {
             // Clean up the temporary variable
-            CleanupTemporaryVariable("_json_result");
+            CleanupTemporaryVariable(sinkVar);
         }
     }
 
@@ -910,8 +934,24 @@ else:
     /// </remarks>
     public DotNetPyValue? Evaluate(string expression)
     {
-        // Assign the expression to a result variable and execute
-        return ExecuteAndCapture($"result = {expression}");
+        // Use a per-call unique sink so concurrent Evaluate calls under free-threaded
+        // Python (no GIL serialization) don't race on a shared 'result' slot in
+        // __main__ globals. Side-effect: Evaluate no longer leaves a 'result' user
+        // variable behind for callers that relied on chaining Evaluate -> CaptureVariable("result").
+        // For that pattern, callers should use Execute + CaptureVariable explicitly.
+        string resultVar = MakeInternalName("eval_result");
+        try
+        {
+            return ExecuteAndCapture($"{resultVar} = {expression}", resultVar);
+        }
+        finally
+        {
+            // ExecuteAndCapture cleans up its own JSON sink but leaves the named
+            // resultVariable in __main__ globals. For Evaluate that's a per-call
+            // unique name, so it would accumulate forever; clean it up explicitly.
+            using var gil = new GilLock();
+            CleanupTemporaryVariable(resultVar);
+        }
     }
 
     /// <summary>
@@ -925,20 +965,21 @@ else:
 
         using var gil = new GilLock();
 
+        string flagVar = MakeInternalName("var_exists");
         string checkCode = $@"
-_var_exists_check = '{EscapePythonString(variableName)}' in globals()
+{flagVar} = '{EscapePythonString(variableName)}' in globals()
 ";
 
         try
         {
             Execute(checkCode);
 
-            using var exists = CaptureVariable("_var_exists_check");
+            using var exists = CaptureVariable(flagVar);
             return exists?.GetBoolean() ?? false;
         }
         finally
         {
-            CleanupTemporaryVariable("_var_exists_check");
+            CleanupTemporaryVariable(flagVar);
         }
     }
 
@@ -964,15 +1005,16 @@ _var_exists_check = '{EscapePythonString(variableName)}' in globals()
         using var gil = new GilLock();
 
         // Check all variables at once
+        string listVar = MakeInternalName("existing_vars");
         var checkList = string.Join(",", variableNames.Select(v => $"'{EscapePythonString(v)}'"));
         string checkCode = $@"
-_existing_vars = [v for v in [{checkList}] if v in globals()]
+{listVar} = [v for v in [{checkList}] if v in globals()]
 ";
 
         try
         {
             Execute(checkCode);
-            using var doc = CaptureVariableInternal("_existing_vars");
+            using var doc = CaptureVariableInternal(listVar);
 
             if (doc == null)
                 return [];
@@ -991,7 +1033,7 @@ _existing_vars = [v for v in [{checkList}] if v in globals()]
         }
         finally
         {
-            CleanupTemporaryVariable("_existing_vars");
+            CleanupTemporaryVariable(listVar);
         }
     }
 
@@ -1024,14 +1066,16 @@ _existing_vars = [v for v in [{checkList}] if v in globals()]
 
         using var gil = new GilLock();
 
+        string sinkVar = MakeInternalName("json_result");
+
         // Extract variable via JSON serialization
         string captureCode = $@"
 import json
 
 if '{EscapePythonString(variableName)}' in locals() or '{EscapePythonString(variableName)}' in globals():
-    _json_result = json.dumps({variableName}, ensure_ascii=False, default=str)
+    {sinkVar} = json.dumps({variableName}, ensure_ascii=False, default=str)
 else:
-    _json_result = '__VARIABLE_NOT_FOUND__'
+    {sinkVar} = '__VARIABLE_NOT_FOUND__'
 ";
 
         // Get the globals dictionary of the __main__ module
@@ -1056,8 +1100,8 @@ else:
 
         try
         {
-            // Extract the JSON string from the _json_result variable (borrowed reference)
-            using var jsonResultObj = DotNetPyObject.FromBorrowedReference(_pyDictGetItemString!(globals, "_json_result"));
+            // Extract the JSON string from the sink variable (borrowed reference)
+            using var jsonResultObj = DotNetPyObject.FromBorrowedReference(_pyDictGetItemString!(globals, sinkVar));
             if (jsonResultObj == null || jsonResultObj.IsInvalid)
             {
                 return null;
@@ -1082,7 +1126,7 @@ else:
         }
         finally
         {
-            CleanupTemporaryVariable("_json_result");
+            CleanupTemporaryVariable(sinkVar);
         }
     }
 
@@ -1107,13 +1151,17 @@ else:
 
         using var gil = new GilLock();
 
+        // Per-call unique names so concurrent free-threaded calls don't race.
+        string dictVar = MakeInternalName("captured_dict");
+        string sinkVar = MakeInternalName("json_result");
+
         // Capture all variables into a dictionary at once
         var varList = string.Join(", ", variableNames.Select(v =>
             $"'{EscapePythonString(v)}': globals().get('{EscapePythonString(v)}')"));
         string captureCode = $@"
 import json
-_captured_dict = {{{varList}}}
-_json_result = json.dumps(_captured_dict, ensure_ascii=False, default=str)
+{dictVar} = {{{varList}}}
+{sinkVar} = json.dumps({dictVar}, ensure_ascii=False, default=str)
 ";
 
         // Get the globals dictionary of the __main__ module
@@ -1138,8 +1186,8 @@ _json_result = json.dumps(_captured_dict, ensure_ascii=False, default=str)
 
         try
         {
-            // Extract the JSON string directly from the _json_result variable (borrowed reference)
-            using var jsonResultObj = DotNetPyObject.FromBorrowedReference(_pyDictGetItemString!(globals, "_json_result"));
+            // Extract the JSON string directly from the sink variable (borrowed reference)
+            using var jsonResultObj = DotNetPyObject.FromBorrowedReference(_pyDictGetItemString!(globals, sinkVar));
             if (jsonResultObj == null || jsonResultObj.IsInvalid)
             {
                 return new DotNetPyDictionary(new Dictionary<string, DotNetPyValue?>());
@@ -1173,7 +1221,7 @@ _json_result = json.dumps(_captured_dict, ensure_ascii=False, default=str)
         }
         finally
         {
-            CleanupTemporaryVariables("_captured_dict", "_json_result");
+            CleanupTemporaryVariables(dictVar, sinkVar);
         }
     }
 
@@ -1406,9 +1454,10 @@ _json_result = json.dumps(_captured_dict, ensure_ascii=False, default=str)
 
         using var gil = new GilLock();
 
+        string flagVar = MakeInternalName("var_delete_existed");
         string deleteCode = $@"
-_var_delete_existed = '{EscapePythonString(variableName)}' in globals()
-if _var_delete_existed:
+{flagVar} = '{EscapePythonString(variableName)}' in globals()
+if {flagVar}:
     del {variableName}
 ";
 
@@ -1416,13 +1465,13 @@ if _var_delete_existed:
         {
             Execute(deleteCode);
 
-            // Check the _var_delete_existed variable
-            using var existed = CaptureVariable("_var_delete_existed");
+            // Check the existence flag captured before deletion
+            using var existed = CaptureVariable(flagVar);
             return existed?.GetBoolean() ?? false;
         }
         finally
         {
-            CleanupTemporaryVariable("_var_delete_existed");
+            CleanupTemporaryVariable(flagVar);
         }
     }
 
@@ -1447,12 +1496,13 @@ if _var_delete_existed:
 
         using var gil = new GilLock();
 
+        string listVar = MakeInternalName("deleted_vars");
         var checkList = string.Join(",", variableNames.Select(v => $"'{EscapePythonString(v)}'"));
         string deleteCode = $@"
-_deleted_vars = []
+{listVar} = []
 for v in [{checkList}]:
     if v in globals():
-        _deleted_vars.append(v)
+        {listVar}.append(v)
         del globals()[v]
 ";
 
@@ -1460,7 +1510,7 @@ for v in [{checkList}]:
         {
             Execute(deleteCode);
 
-            using var doc = CaptureVariableInternal("_deleted_vars");
+            using var doc = CaptureVariableInternal(listVar);
 
             if (doc == null)
                 return [];
@@ -1479,7 +1529,7 @@ for v in [{checkList}]:
         }
         finally
         {
-            CleanupTemporaryVariable("_deleted_vars");
+            CleanupTemporaryVariable(listVar);
         }
     }
 
@@ -1492,14 +1542,18 @@ for v in [{checkList}]:
 
         using var gil = new GilLock();
 
-        Execute(@"
+        // Per-call unique scratch name. The leading underscore in the resulting
+        // _dotnetpy_* identifier ensures the comprehension's startswith('_')
+        // filter still excludes our scratch list from the deletion set.
+        string listVar = MakeInternalName("to_delete");
+        Execute($@"
 # Delete only user-defined variables (keep built-in objects and modules)
-_to_delete = [k for k in list(globals().keys()) 
-              if not k.startswith('_') 
+{listVar} = [k for k in list(globals().keys())
+              if not k.startswith('_')
               and k not in dir(__builtins__)]
-for k in _to_delete:
+for k in {listVar}:
     del globals()[k]
-del _to_delete
+del {listVar}
 ");
     }
 
