@@ -192,18 +192,20 @@ public sealed class ConcurrencyAndIsolationTests
     }
 
     /// <summary>
-    /// Documents (and continuously reproduces, when un-ignored under a free-threaded
-    /// build) a known architectural limitation: DotNetPy currently injects user
-    /// variables into the shared <c>__main__</c> globals dict. Two concurrent callers
-    /// reusing the same user variable name will race regardless of how cleanly
-    /// DotNetPy isolates its own internal scratch names. Mitigations available today:
-    /// (a) use caller-unique variable names, (b) serialise calls externally, or
-    /// (c) use a dedicated <see cref="DotNetPyExecutor"/> instance per thread.
-    ///
-    /// Re-enable once an isolated-namespace execution mode lands in DotNetPy itself.
+    /// Documents the shared-singleton limitation: <see cref="Python.GetInstance"/>
+    /// injects user variables into the shared <c>__main__</c> globals dict, so
+    /// two concurrent callers reusing the same user variable name will race
+    /// regardless of how cleanly DotNetPy isolates its own internal scratch
+    /// names. The recommended fix is now a first-class API:
+    /// <see cref="Python.CreateIsolated"/> / <see cref="DotNetPyExecutor.CreateIsolated"/>
+    /// gives each caller its own namespace. See
+    /// <c>IsolatedExecutorTests.ParallelCallers_OwnIsolatedExecutorEach_NoRace</c>
+    /// for the equivalent workload that succeeds under free-threaded builds.
+    /// This test stays <c>[Ignore]</c>'d as a regression marker for the shared
+    /// singleton's inherent behaviour, not as a planned future fix.
     /// </summary>
     [TestMethod]
-    [Ignore("Known limitation under free-threaded Python: user variables share __main__ globals across callers. Tracked separately from the internal-name isolation fix.")]
+    [Ignore("Shared singleton: user variables live in __main__. Use CreateIsolated() for concurrent callers.")]
     public void KnownLimitation_ParallelCallsWithSharedUserVariableNames_RaceUnderFT()
     {
         const int callerCount = 16;

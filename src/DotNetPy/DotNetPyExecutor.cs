@@ -34,6 +34,26 @@ public sealed partial class DotNetPyExecutor : IDisposable
     private static IntPtr _libraryHandle = IntPtr.Zero;
     private volatile bool _disposed = false;
 
+    // Isolated-namespace state.
+    //
+    // For the shared (singleton) executor this stays IntPtr.Zero and all code
+    // runs against __main__'s globals dict (the historical behaviour). For an
+    // executor produced by <see cref="CreateIsolated"/>, this owns a strong
+    // reference to a fresh dict that serves as both globals and locals for
+    // every execution. The dict is freed via Py_DecRef in <see cref="Dispose"/>.
+    //
+    // A non-zero value is sufficient to distinguish the two modes; the bool
+    // exists only to make the intent explicit at call sites.
+    private readonly IntPtr _isolatedNamespace = IntPtr.Zero;
+    private readonly bool _isIsolated = false;
+
+    // Cached resolved namespace pointer for the shared mode. __main__ is created
+    // once per process and never unloaded, so its globals dict pointer is stable
+    // for the lifetime of the interpreter. Resolving it lazily (on first use,
+    // when a GIL is held) avoids needing the GIL at construction time and is
+    // safe because every read happens inside a GilLock.
+    private IntPtr _sharedNamespaceCache = IntPtr.Zero;
+
     // Monotonic counter used to mint unique names for internal temporary variables
     // injected into Python's __main__ globals. With free-threaded Python (PEP 703)
     // the GIL no longer serializes interpreter operations, so two concurrent
@@ -83,6 +103,12 @@ public sealed partial class DotNetPyExecutor : IDisposable
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate IntPtr PyDictNewDelegate();
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int PyDictSetItemStringDelegate(
+        IntPtr dict,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string key,
+        IntPtr value);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate IntPtr PyDictGetItemStringDelegate(
@@ -150,6 +176,7 @@ public sealed partial class DotNetPyExecutor : IDisposable
     private static PyImportAddModuleDelegate? _pyImportAddModule;
     private static PyModuleGetDictDelegate? _pyModuleGetDict;
     private static PyDictNewDelegate? _pyDictNew;
+    private static PyDictSetItemStringDelegate? _pyDictSetItemString;
     private static PyDictGetItemStringDelegate? _pyDictGetItemString;
     private static PyUnicodeAsUTF8StringDelegate? _pyUnicodeAsUTF8String;
     private static PyBytesAsStringDelegate? _pyBytesAsString;
@@ -170,11 +197,123 @@ public sealed partial class DotNetPyExecutor : IDisposable
     private const int Py_file_input = 257;
 
     /// <summary>
-    /// Private constructor - instance can only be created through GetInstance().
+    /// Private constructor for the process-wide shared executor.
+    /// Created through <see cref="GetInstance(string?, PythonInfo?)"/>.
     /// </summary>
     private DotNetPyExecutor(string? libraryPath, PythonInfo? pythonInfo)
     {
         EnsureInitialized(libraryPath, pythonInfo);
+    }
+
+    /// <summary>
+    /// Private constructor for an isolated executor that owns a fresh namespace.
+    /// Created through <see cref="CreateIsolated"/>; the Python runtime must
+    /// already be initialized.
+    /// </summary>
+    private DotNetPyExecutor(bool isolated)
+    {
+        if (!isolated)
+            throw new ArgumentException("This constructor only creates isolated executors.", nameof(isolated));
+        if (!_initialized)
+            throw new InvalidOperationException(
+                "Python runtime must be initialized before creating an isolated executor. " +
+                "Call Python.Initialize() (or DotNetPyExecutor.GetInstance) first.");
+
+        _isIsolated = true;
+
+        using var gil = new GilLock();
+
+        IntPtr ns = _pyDictNew!();
+        if (ns == IntPtr.Zero)
+            throw new DotNetPyException("Failed to allocate isolated namespace dict.");
+
+        try
+        {
+            // Without __builtins__ user code cannot do `import json`, `print`, `len`, etc.
+            IntPtr builtins = _pyImportAddModule!("builtins"); // borrowed
+            if (builtins == IntPtr.Zero)
+                throw new DotNetPyException("Failed to resolve builtins module for isolated namespace.");
+
+            int rc = _pyDictSetItemString!(ns, "__builtins__", builtins);
+            if (rc != 0)
+                throw new DotNetPyException("Failed to inject __builtins__ into isolated namespace.");
+
+            _isolatedNamespace = ns;
+        }
+        catch
+        {
+            // We own the +1 reference returned by PyDict_New; release it on failure.
+            DotNetPyObject.FromNewReference(ns)?.Dispose();
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Creates a new executor with its own private execution namespace. Multiple
+    /// isolated executors can coexist with the shared singleton and with each
+    /// other; user variables defined on one executor are invisible to the rest.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Each isolated executor owns a fresh Python dict that serves as both the
+    /// globals and locals for every <c>Execute</c> / <c>ExecuteAndCapture</c> /
+    /// <c>Evaluate</c> call on it. The dict is initialised with a reference to
+    /// the standard <c>builtins</c> module so user code can call <c>print</c>,
+    /// <c>len</c>, and use <c>import</c> as usual.
+    /// </para>
+    /// <para>
+    /// <b>When to prefer this over the shared singleton:</b>
+    /// </para>
+    /// <list type="bullet">
+    ///   <item><description>You want concurrent callers (especially on free-threaded
+    ///   Python) to not race on shared user variable names in <c>__main__</c>.</description></item>
+    ///   <item><description>You want to keep one task's Python state out of another
+    ///   task's reach without manually clearing globals between runs.</description></item>
+    /// </list>
+    /// <para>
+    /// <b>What you give up:</b> there is no cross-call persistence across
+    /// different executors — variables defined on executor A are not visible
+    /// from executor B. (Within a single isolated executor, variables still
+    /// persist across calls, just like the shared executor.)
+    /// </para>
+    /// <para>
+    /// The Python runtime must be initialised before calling this method
+    /// (typically via <see cref="Python.Initialize(PythonDiscoveryOptions?)"/>
+    /// or <see cref="Python.Initialize(string)"/>). Dispose the executor
+    /// when finished to release the namespace dict.
+    /// </para>
+    /// </remarks>
+    /// <returns>A new isolated executor instance.</returns>
+    /// <exception cref="InvalidOperationException">The Python runtime has not been initialized.</exception>
+    /// <exception cref="DotNetPyException">Underlying CPython API failed (dict creation or builtins injection).</exception>
+    public static DotNetPyExecutor CreateIsolated()
+        => new DotNetPyExecutor(isolated: true);
+
+    /// <summary>
+    /// Gets the IntPtr to the dict that this executor uses as the execution
+    /// namespace. MUST be called with the GIL held.
+    /// </summary>
+    private IntPtr GetExecutionNamespacePtr()
+    {
+        if (_isIsolated)
+            return _isolatedNamespace;
+
+        // Shared mode: resolve __main__.globals() once and cache. The __main__
+        // module and its globals dict are created at interpreter startup and
+        // remain valid for the lifetime of the interpreter, so caching the
+        // borrowed pointer is safe.
+        if (_sharedNamespaceCache != IntPtr.Zero)
+            return _sharedNamespaceCache;
+
+        IntPtr mainModule = _pyImportAddModule!("__main__"); // borrowed
+        if (mainModule == IntPtr.Zero)
+            throw new DotNetPyException("Could not get the __main__ module.");
+        IntPtr globals = _pyModuleGetDict!(mainModule); // borrowed from __main__
+        if (globals == IntPtr.Zero)
+            throw new DotNetPyException("Could not get the __main__ module's globals.");
+
+        _sharedNamespaceCache = globals;
+        return globals;
     }
 
     /// <summary>
@@ -386,6 +525,7 @@ del _venv_site
             _pyImportAddModule = NativeMethods.LoadFunction<PyImportAddModuleDelegate>(_libraryHandle, "PyImport_AddModule");
             _pyModuleGetDict = NativeMethods.LoadFunction<PyModuleGetDictDelegate>(_libraryHandle, "PyModule_GetDict");
             _pyDictNew = NativeMethods.LoadFunction<PyDictNewDelegate>(_libraryHandle, "PyDict_New");
+            _pyDictSetItemString = NativeMethods.LoadFunction<PyDictSetItemStringDelegate>(_libraryHandle, "PyDict_SetItemString");
             _pyDictGetItemString = NativeMethods.LoadFunction<PyDictGetItemStringDelegate>(_libraryHandle, "PyDict_GetItemString");
             _pyUnicodeAsUTF8String = NativeMethods.LoadFunction<PyUnicodeAsUTF8StringDelegate>(_libraryHandle, "PyUnicode_AsUTF8String");
             _pyBytesAsString = NativeMethods.LoadFunction<PyBytesAsStringDelegate>(_libraryHandle, "PyBytes_AsString");
@@ -424,36 +564,32 @@ del _venv_site
         using var gil = new GilLock();
 
         // Use a per-call unique name so concurrent free-threaded callers don't
-        // collide on the same slot in __main__ globals.
+        // collide on the same slot, and so isolated executors' scratch lives
+        // in their own namespace rather than leaking into __main__.
         string flagVar = MakeInternalName("is_valid");
         string escaped = EscapePythonString(name);
 
-        // Use Python's str.isidentifier() and keyword.iskeyword()
+        // Use Python's str.isidentifier() and keyword.iskeyword().
+        // PyRun_String honours the (globals, locals) we pass; PyRun_SimpleString
+        // would always execute against __main__ and break isolated mode.
         string validationCode = $@"
 import keyword
 {flagVar} = '{escaped}'.isidentifier() and not keyword.iskeyword('{escaped}')
 ";
 
+        IntPtr ns = GetExecutionNamespacePtr();
+
         try
         {
-            int result = _pyRunSimpleString!(validationCode);
-            if (result != 0)
+            using var result = DotNetPyObject.FromNewReference(_pyRunString!(validationCode, Py_file_input, ns, ns));
+            if (result == null || result.IsInvalid)
             {
                 _pyErrClear!();
                 return false;
             }
 
-            // Get the globals dictionary of the __main__ module
-            using var mainModule = DotNetPyObject.FromBorrowedReference(_pyImportAddModule!("__main__"));
-            if (mainModule == null || mainModule.IsInvalid)
-                return false;
-
-            using var globals = DotNetPyObject.FromBorrowedReference(_pyModuleGetDict!(mainModule.DangerousGetHandle()));
-            if (globals == null || globals.IsInvalid)
-                return false;
-
             // Get the validation flag variable (borrowed reference)
-            using var isValidObj = DotNetPyObject.FromBorrowedReference(_pyDictGetItemString!(globals.DangerousGetHandle(), flagVar));
+            using var isValidObj = DotNetPyObject.FromBorrowedReference(_pyDictGetItemString!(ns, flagVar));
             if (isValidObj == null || isValidObj.IsInvalid)
                 return false;
 
@@ -467,15 +603,8 @@ import keyword
         }
         finally
         {
-            // Clean up the temporary variable
-            try
-            {
-                _pyRunSimpleString!($"del {flagVar}");
-            }
-            catch
-            {
-                // Ignore cleanup failure
-            }
+            // Clean up the temporary variable in the same namespace it landed in.
+            CleanupNamespaceVariable(ns, flagVar);
         }
     }
 
@@ -518,14 +647,8 @@ import keyword
         // Normalize indentation
         code = NormalizePythonCode(code);
 
-        // Get the globals dictionary of the __main__ module
-        using var mainModule = DotNetPyObject.FromBorrowedReference(_pyImportAddModule!("__main__"));
-        if (mainModule == null || mainModule.IsInvalid)
-        {
-            throw new DotNetPyException("Could not get the __main__ module.");
-        }
-
-        IntPtr globals = _pyModuleGetDict!(mainModule.DangerousGetHandle()); // borrowed reference
+        // Resolve this executor's namespace (shared __main__ or an isolated dict).
+        IntPtr globals = GetExecutionNamespacePtr();
         IntPtr locals = globals;
 
         // Execute the code using PyRun_String to preserve error information
@@ -579,14 +702,8 @@ import keyword
         // Combine with user code
         string fullCode = variableCode.ToString() + "\n" + NormalizePythonCode(code);
 
-        // Get the globals dictionary of the __main__ module
-        using var mainModule = DotNetPyObject.FromBorrowedReference(_pyImportAddModule!("__main__"));
-        if (mainModule == null || mainModule.IsInvalid)
-        {
-            throw new DotNetPyException("Could not get the __main__ module.");
-        }
-
-        IntPtr globals = _pyModuleGetDict!(mainModule.DangerousGetHandle()); // borrowed reference
+        // Resolve this executor's namespace (shared __main__ or an isolated dict).
+        IntPtr globals = GetExecutionNamespacePtr();
         IntPtr locals = globals;
 
         // Execute the code using PyRun_String to preserve error information
@@ -757,14 +874,8 @@ else:
     {sinkVar} = 'null'
 ";
 
-        // Get the globals dictionary of the __main__ module
-        using var mainModule = DotNetPyObject.FromBorrowedReference(_pyImportAddModule!("__main__"));
-        if (mainModule == null || mainModule.IsInvalid)
-        {
-            throw new DotNetPyException("Could not get the __main__ module.");
-        }
-
-        IntPtr globals = _pyModuleGetDict!(mainModule.DangerousGetHandle()); // borrowed reference
+        // Resolve this executor's namespace (shared __main__ or an isolated dict).
+        IntPtr globals = GetExecutionNamespacePtr();
         IntPtr locals = globals;
 
         // Execute the code
@@ -869,14 +980,8 @@ else:
     {sinkVar} = 'null'
 ";
 
-        // Get the globals dictionary of the __main__ module
-        using var mainModule = DotNetPyObject.FromBorrowedReference(_pyImportAddModule!("__main__"));
-        if (mainModule == null || mainModule.IsInvalid)
-        {
-            throw new DotNetPyException("Could not get the __main__ module.");
-        }
-
-        IntPtr globals = _pyModuleGetDict!(mainModule.DangerousGetHandle()); // borrowed reference
+        // Resolve this executor's namespace (shared __main__ or an isolated dict).
+        IntPtr globals = GetExecutionNamespacePtr();
         IntPtr locals = globals;
 
         // Execute the code
@@ -1078,14 +1183,8 @@ else:
     {sinkVar} = '__VARIABLE_NOT_FOUND__'
 ";
 
-        // Get the globals dictionary of the __main__ module
-        using var mainModule = DotNetPyObject.FromBorrowedReference(_pyImportAddModule!("__main__"));
-        if (mainModule == null || mainModule.IsInvalid)
-        {
-            throw new DotNetPyException("Could not get the __main__ module.");
-        }
-
-        IntPtr globals = _pyModuleGetDict!(mainModule.DangerousGetHandle()); // borrowed reference
+        // Resolve this executor's namespace (shared __main__ or an isolated dict).
+        IntPtr globals = GetExecutionNamespacePtr();
         IntPtr locals = globals;
 
         // Execute the code
@@ -1164,14 +1263,8 @@ import json
 {sinkVar} = json.dumps({dictVar}, ensure_ascii=False, default=str)
 ";
 
-        // Get the globals dictionary of the __main__ module
-        using var mainModule = DotNetPyObject.FromBorrowedReference(_pyImportAddModule!("__main__"));
-        if (mainModule == null || mainModule.IsInvalid)
-        {
-            throw new DotNetPyException("Could not get the __main__ module.");
-        }
-
-        IntPtr globals = _pyModuleGetDict!(mainModule.DangerousGetHandle()); // borrowed reference
+        // Resolve this executor's namespace (shared __main__ or an isolated dict).
+        IntPtr globals = GetExecutionNamespacePtr();
         IntPtr locals = globals;
 
         // Execute the code
@@ -1558,29 +1651,49 @@ del {listVar}
     }
 
     /// <summary>
-    /// Cleans up a temporary variable (logs an error on failure).
+    /// Cleans up a temporary variable in this executor's namespace
+    /// (logs an error on failure). MUST be called with the GIL held.
     /// </summary>
-    private static void CleanupTemporaryVariable(string variableName)
+    private void CleanupTemporaryVariable(string variableName)
+        => CleanupNamespaceVariable(GetExecutionNamespacePtr(), variableName);
+
+    /// <summary>
+    /// Cleans up multiple temporary variables in this executor's namespace.
+    /// MUST be called with the GIL held.
+    /// </summary>
+    private void CleanupTemporaryVariables(params string[] variableNames)
     {
-        try
+        IntPtr ns = GetExecutionNamespacePtr();
+        foreach (var varName in variableNames)
         {
-            _pyRunSimpleString!($"del {variableName}");
-        }
-        catch (Exception ex)
-        {
-            // Logging (using ILogger is recommended in actual production)
-            Debug.WriteLine($"Failed to clean up temporary variable '{variableName}': {ex.Message}");
+            CleanupNamespaceVariable(ns, varName);
         }
     }
 
     /// <summary>
-    /// Cleans up multiple temporary variables.
+    /// Deletes a name from the given namespace dict. Errors are swallowed
+    /// because cleanup paths run from finally blocks where a leaked scratch
+    /// name is preferable to a thrown exception masking the real failure.
     /// </summary>
-    private static void CleanupTemporaryVariables(params string[] variableNames)
+    private static void CleanupNamespaceVariable(IntPtr ns, string variableName)
     {
-        foreach (var varName in variableNames)
+        try
         {
-            CleanupTemporaryVariable(varName);
+            string code = $"del {variableName}";
+            IntPtr r = _pyRunString!(code, Py_file_input, ns, ns);
+            if (r == IntPtr.Zero)
+            {
+                _pyErrClear!();
+            }
+            else
+            {
+                // Release the +1 reference PyRun_String returns on success.
+                DotNetPyObject.FromNewReference(r)?.Dispose();
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Failed to clean up temporary variable '{variableName}': {ex.Message}");
         }
     }
 
@@ -1590,14 +1703,45 @@ del {listVar}
     }
 
     /// <summary>
-    /// Releases the reference.
-    /// This method only performs reference counting, and cleans up global variables when the last reference is released.
-    /// The Python runtime itself is maintained until the process terminates.
+    /// Releases the executor. For the shared singleton this only decrements
+    /// the process-wide reference count and clears globals when the last
+    /// reference goes away; the Python runtime itself stays loaded. For an
+    /// isolated executor this additionally releases the owned namespace dict.
     /// </summary>
     public void Dispose()
     {
         if (_disposed)
             return;
+
+        if (_isIsolated)
+        {
+            // Isolated executors don't participate in the shared reference
+            // count: each one owns its namespace and releases it independently.
+            lock (_instanceLock)
+            {
+                if (_disposed)
+                    return;
+
+                if (_isolatedNamespace != IntPtr.Zero)
+                {
+                    // Releasing the namespace dict triggers Py_DecRef on every
+                    // value it contains, which can run arbitrary __del__ code.
+                    // We need to hold the GIL for that.
+                    try
+                    {
+                        using var gil = new GilLock();
+                        DotNetPyObject.FromNewReference(_isolatedNamespace)?.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Failed to release isolated namespace: {ex.Message}");
+                    }
+                }
+
+                _disposed = true;
+            }
+            return;
+        }
 
         lock (_instanceLock)
         {

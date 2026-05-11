@@ -84,6 +84,21 @@ public static class Python
     public static PythonInfo? CurrentPythonInfo => DotNetPyExecutor.CurrentPythonInfo;
 
     /// <summary>
+    /// Creates a new executor with its own private execution namespace,
+    /// independent of <see cref="GetInstance"/>'s shared singleton and of any
+    /// other isolated executor. See
+    /// <see cref="DotNetPyExecutor.CreateIsolated"/> for the full contract.
+    /// </summary>
+    /// <remarks>
+    /// The Python runtime must already be initialised (call
+    /// <see cref="Initialize(PythonDiscoveryOptions?)"/> or
+    /// <see cref="Initialize(string)"/> first).
+    /// Dispose the returned executor when finished.
+    /// </remarks>
+    /// <returns>A new isolated executor instance.</returns>
+    public static DotNetPyExecutor CreateIsolated() => DotNetPyExecutor.CreateIsolated();
+
+    /// <summary>
     /// Gets whether the currently initialized Python was built with free-threading support (no GIL).
     /// Returns false if Python has not been initialized or is a standard GIL-enabled build.
     /// </summary>
