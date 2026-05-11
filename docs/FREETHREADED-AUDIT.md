@@ -132,6 +132,58 @@ the `Py_DecRef` call, with a fallback to a bare `Py_DecRef` if the GIL helpers
 were not initialized (e.g. early process shutdown). See
 [`DotNetPyObject.ReleaseHandle`](../src/DotNetPy/DotNetPyObject.cs).
 
+### Fix 4 — Opt-in isolated executors (`CreateIsolated`)
+
+**Problem.** Fixes 1–3 handle DotNetPy's *internal* state. They do not address
+the case where two concurrent callers — running on different threads —
+deliberately use the same user variable name. With the shared singleton every
+call's user variables land in `__main__.globals()`; under free-threaded Python
+two threads writing `seed = X` and `seed = Y` will race and either thread can
+then read the other's value. This is exercised, and continuously regressed
+against, by the `[Ignore]`-marked
+[`KnownLimitation_ParallelCallsWithSharedUserVariableNames_RaceUnderFT`](../src/DotNetPy.UnitTest/ConcurrencyAndIsolationTests.cs).
+
+**Fix.** A new factory method,
+[`DotNetPyExecutor.CreateIsolated`](../src/DotNetPy/DotNetPyExecutor.cs) (also
+re-exported as [`Python.CreateIsolated`](../src/DotNetPy/Python.cs)), produces
+an executor with its own private execution namespace. Internally the executor
+holds a strong reference to a fresh `PyDict` (pre-populated with
+`__builtins__`) and runs every `PyRun_String` against that dict as both
+globals and locals.
+
+```csharp
+// Concurrent workers, same user variable names, no race:
+Parallel.For(0, 16, callerId =>
+{
+    using var iso = Python.CreateIsolated();
+    iso.Execute("seed = " + callerId);
+    iso.Execute("result = seed * 2 + 1");
+    // 'seed' and 'result' are this caller's alone.
+});
+```
+
+Trade-offs:
+
+- **Cross-executor isolation.** Variables defined on executor A are invisible
+  to executor B and to the shared singleton. Within a single isolated executor
+  variables still persist across calls.
+- **Per-call overhead.** Creating the namespace dict and injecting
+  `__builtins__` is a one-time cost at executor construction (microseconds).
+  Each call resolves `globals` from a cached pointer; no extra work versus the
+  shared path.
+- **`PyRun_SimpleString` cannot be used.** It always executes against
+  `__main__`. DotNetPy's internal validation (`IsValidPythonIdentifier`) and
+  scratch cleanup paths now use `PyRun_String` with the executor's namespace
+  instead.
+- **Lifetime.** Disposing an isolated executor releases its namespace dict
+  (under a GIL guard so any `__del__` side-effects run safely). The shared
+  singleton is unaffected.
+
+The shared singleton (`Python.GetInstance`) keeps its existing semantics —
+variables persist across calls in `__main__`, which is what most scripting
+scenarios want. `CreateIsolated` is an opt-in for callers that need
+concurrency or hard isolation.
+
 ## Verification
 
 Two layers of tests verify the fixes, run against three Python builds.
@@ -139,7 +191,8 @@ Two layers of tests verify the fixes, run against three Python builds.
 ### Layer A — in-process unit tests
 
 `src/DotNetPy.UnitTest/ConcurrencyAndIsolationTests.cs` (12 active tests +
-1 deliberately-ignored "known limitation" test) covers:
+1 deliberately-ignored "known limitation" test) covers the shared-singleton
+path:
 
 - Each public method leaves no `_dotnetpy_*` scratch residue in globals.
 - 50 sequential mixed-API calls do not accumulate `_dotnetpy_*` entries.
@@ -148,6 +201,19 @@ Two layers of tests verify the fixes, run against three Python builds.
 - 12-caller × 5-iter parallel `CaptureVariable` against per-caller globals.
 - 10-caller parallel `VariableExists` / `DeleteVariable` against per-caller
   globals.
+
+`src/DotNetPy.UnitTest/IsolatedExecutorTests.cs` (7 tests) covers Fix 4 —
+the `CreateIsolated` factory:
+
+- Distinct instances per `CreateIsolated()` call.
+- Isolated executor's variables do not appear in the shared singleton.
+- Two isolated executors are mutually independent.
+- Variables persist across calls within a single isolated executor.
+- `__builtins__` is wired up (`print`, `len`, `import json` all work).
+- Disposing one isolated executor does not disturb others.
+- The exact workload that races on the shared singleton —
+  16 callers × 8 iterations using `seed`/`result` as user variable names —
+  succeeds when each caller owns its own isolated executor.
 
 The test suite as a whole is driven against an arbitrary Python build through
 the `DOTNETPY_TEST_PYTHON_LIB` environment variable, picked up by
@@ -166,16 +232,17 @@ parallel `evaluate`. The parallel `evaluate` check is what surfaced Fix 2.
 
 | Python build | Unit tests (passed / skipped / failed) | Native AOT consumer |
 |--------------|----------------------------------------|---------------------|
-| CPython 3.13 (GIL, auto-discovered) | 202 / 1 / **0** | 8 / 8 ✅ |
-| CPython 3.13.13t (free-threaded) | 198 / 5 / **0** | 8 / 8 ✅ |
-| CPython 3.14.4t (free-threaded) | 198 / 5 / **0** | 8 / 8 ✅ |
+| CPython 3.13 (GIL, auto-discovered) | 209 / 1 / **0** | 8 / 8 ✅ |
+| CPython 3.13.13t (free-threaded) | 205 / 5 / **0** | 8 / 8 ✅ |
+| CPython 3.14.4t (free-threaded) | 205 / 5 / **0** | 8 / 8 ✅ |
 
 The 4 additional skips under free-threaded runs are dispose-and-reinitialize
 lifecycle tests that conflict with the pre-primed singleton in
 `[AssemblyInitialize]`; they are a test-harness limitation, not a behavioural
 gap. The 1 always-skipped test is the deliberately ignored
-`KnownLimitation_ParallelCallsWithSharedUserVariableNames_RaceUnderFT` — see
-*Known limitations* below.
+`KnownLimitation_ParallelCallsWithSharedUserVariableNames_RaceUnderFT` — it
+documents the shared-singleton race that Fix 4's `CreateIsolated` solves; the
+equivalent workload over isolated executors runs green in the totals above.
 
 ### Reproducing the matrix locally
 
@@ -202,30 +269,26 @@ For the AOT consumer, see [`samples/native-aot/README.md`](../samples/native-aot
 
 ## Known limitations
 
-### User variable injection still uses shared `__main__` globals
+### Shared-singleton concurrent calls with the same user variable name
 
-`Execute(code, variables)` and `ExecuteAndCapture(code, variables, resultVariable)`
-inject the supplied `variables` (and optionally the result variable) into the
-shared `__main__` globals dictionary. Two concurrent callers using the same
-user variable name will race regardless of how well DotNetPy isolates its own
-internal scratch names. The
-`KnownLimitation_ParallelCallsWithSharedUserVariableNames_RaceUnderFT` test
-documents this with a deliberate `[Ignore]` attribute so the issue stays in the
-code base as a tracked concern rather than as silent prose.
+`Python.GetInstance` returns a process-wide singleton that injects user
+variables into `__main__.globals()`. Two concurrent callers using the same
+user variable name still race on that shared dict regardless of how cleanly
+DotNetPy isolates its own internal scratch names. This is intrinsic to the
+shared singleton's contract — its appeal is exactly that variables persist
+across calls and across callers, which means they are *also* visible to (and
+clobberable by) every other caller.
 
-**Mitigations available today:**
+**Recommended options, in priority order:**
 
-- Use caller-unique user variable names.
-- Serialize calls externally with your own lock when calling the same executor
-  from multiple threads.
-- Use a dedicated `DotNetPyExecutor` instance per thread (note: the executor is
-  currently a process-singleton; this would require an API extension).
-
-A proper isolated-namespace execution mode (per-call dict instead of
-`__main__.globals()`) is the longer-term direction. It is intentionally out of
-scope for this audit because it changes user-visible behaviour: variables would
-no longer persist across calls by default, breaking the common
-`Execute("x = 10")` / `Execute("print(x)")` pattern.
+1. **Use `Python.CreateIsolated()`** (Fix 4 above) — each caller / thread gets
+   its own namespace. This is the first-class solution and the same code that
+   raced on the singleton runs green when each thread owns an isolated
+   executor.
+2. **Use caller-unique user variable names** when staying on the shared
+   singleton is preferable (e.g. you actually want cross-call persistence).
+3. **Serialise calls externally** with your own lock when neither of the
+   above fits — coarse-grained, but a backstop.
 
 ### Lifecycle tests skipped under explicit-library initialization
 
