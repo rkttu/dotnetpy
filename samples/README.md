@@ -20,6 +20,8 @@ Some samples additionally require:
 | [declarative-python](declarative-python/) | Declarative Python environment setup with PythonProjectBuilder | uv |
 | [native-aot](native-aot/) | P/Invoke consumer driving the AOT-compiled `DotNetPy.Native.Shared` DLL through its C exports; doubles as a free-threaded Python smoke test | Python + VS C++ tools (Windows) |
 | [ml-embeddings](ml-embeddings/) | End-to-end semantic search with HuggingFace `sentence-transformers`; demonstrates real ML inference, .NET ↔ Python array marshalling, and the isolated-executor pattern | uv (downloads ~1 GB on first run) |
+| [ml-whisper](ml-whisper/) | Speech-to-text with OpenAI's Whisper via HuggingFace `transformers`; transcribes audio with chunk-level timestamps and demonstrates per-worker isolated pipelines | uv (downloads ~1 GB on first run) |
+| [ml-image-gen](ml-image-gen/) | Text-to-image generation with `stabilityai/sd-turbo` via HuggingFace `diffusers`; single-step CPU inference, metadata round-trips to .NET while the PNG stays Python-side | uv (downloads ~4 GB on first run) |
 
 ---
 

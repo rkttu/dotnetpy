@@ -4,6 +4,25 @@ All notable changes to DotNetPy are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 follows [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Added
+
+- **`samples/ml-whisper/`.** End-to-end speech-to-text with OpenAI's
+  `whisper-base.en` via HuggingFace `transformers`. Transcribes a bundled
+  JFK inaugural-address clip (~11 s, U.S. public domain), returns
+  chunk-level timestamps to .NET, and demonstrates per-worker isolated
+  `asr` pipelines.
+- **`samples/ml-image-gen/`.** Text-to-image generation with
+  `stabilityai/sd-turbo` via HuggingFace `diffusers`. Single-step CPU
+  inference, image metadata round-trips to .NET while the PNG stays
+  Python-side; per-worker isolated pipelines drive parallel prompts into
+  their own private namespaces.
+
+These two samples join `samples/ml-embeddings/` to give the project a
+modality-matrix of running ML demos (NLP / audio / vision), all driven
+from a single `.cs` file via `DotNetPy` + uv.
+
 ## [0.6.0] — Free-threaded Python ready
 
 ### Added

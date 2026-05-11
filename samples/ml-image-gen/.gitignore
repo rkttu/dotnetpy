@@ -1,0 +1,4 @@
+# Generated images from `dotnet run sample.cs`. The PNG content is
+# nondeterministic (no manual_seed set) and the files are large, so we
+# keep them out of the repo.
+output/
