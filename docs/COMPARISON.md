@@ -11,6 +11,8 @@ This document compares various approaches to executing Python code from C#, plus
 | **.NET Version** | .NET 10+ | .NET 8+ | .NET 8-9 | .NET 6+ | .NET 6+ |
 | **Native AOT** | ✅ Supported | ✅ Generates AOT libs | ❌ Not supported | ❌ Not supported | ❌ Not supported |
 | **GIL Management** | Automatic (internal) | N/A | Automatic (internal) | Manual required | None (custom runtime) |
+| **Free-threaded Python (PEP 703)** | ✅ Verified on 3.13t & 3.14t | N/A | ❓ Not documented | 🟡 In progress (PR #2721, 3.14t only) | N/A (own runtime, no GIL) |
+| **Isolated Namespaces** | ✅ `Python.CreateIsolated()` | N/A | ❌ Not exposed | ❌ Single interpreter | ✅ `ScriptScope` per call |
 | **Source Generator** | ❌ Not required | ✅ Required | ✅ Required | ❌ Not required | ❌ Not required |
 | **NumPy/Pandas** | ✅ Supported | N/A | ✅ Zero-copy | ✅ Supported | ❌ Not available |
 | **Bidirectional Calls** | C#→Py only | Py→C# only | C#→Py only | ✅ Bidirectional | ✅ Bidirectional |
@@ -19,6 +21,56 @@ This document compares various approaches to executing Python code from C#, plus
 | **File-based App** | ✅ Supported | N/A | ❌ Not supported | ❌ Not supported | ❌ Not supported |
 | **Data Conversion** | JSON-based | CFFI (native) | Direct object + Zero-copy | Direct object | Direct object |
 | **Maturity** | 🆕 Experimental | 🆕 New | 🆕 New (2024) | ✅ Stable (15+ years) | ✅ Stable |
+
+> **About the free-threaded row.** "Verified" means the library has been audited
+> against [pythonnet PR #2721](https://github.com/pythonnet/pythonnet/pull/2721)'s
+> risk categories and a test matrix is run on CPython 3.13t and 3.14t in
+> addition to the classic GIL build. DotNetPy's matrix is documented in
+> [`FREETHREADED-AUDIT.md`](FREETHREADED-AUDIT.md). pythonnet's PR #2721
+> targets 3.14t only — 3.13t is blocked by a transitive `cffi` dependency in
+> `clr-loader`. CSnakes and other entries reflect what is publicly documented
+> at the time of writing; correct via PR if their status changes.
+
+---
+
+## Quick Decision Guide
+
+```text
+What are you doing?
+
+  Calling Python from C#?
+    │
+    ├── Need Native AOT (single binary, no .NET runtime)?
+    │     └── DotNetPy  (the only AOT-capable option in this list)
+    │
+    ├── Need free-threaded Python (3.13t / 3.14t) today?
+    │     └── DotNetPy  (verified; pythonnet 3.14t support is in-flight,
+    │                    pythonnet 3.13t is blocked by cffi/clr-loader)
+    │
+    ├── Need many concurrent callers without state pollution?
+    │     └── DotNetPy.CreateIsolated()  (per-caller Python namespace)
+    │
+    ├── Prefer Source Generator + strong typing from Python type hints?
+    │     └── CSnakes  (zero-copy NumPy, compile-time validation)
+    │
+    ├── Need to *manipulate* Python objects directly with `dynamic`?
+    │     └── pythonnet  (15+ years stable, but no AOT, manual GIL)
+    │
+    └── Just want the cheapest path to "run this Python snippet"?
+          └── DotNetPy  (4 lines, no project file, no Source Generator)
+
+  Calling .NET from Python?
+    │
+    ├── Want a pip-installable Python package wrapping your .NET AOT lib?
+    │     └── DotWrap  (auto-generates CPython extension via CFFI)
+    │
+    └── Want to import .NET assemblies from a Python script?
+          └── pythonnet  (`import clr` reverse direction)
+
+  Need Python-as-a-scripting-language inside .NET, without CPython?
+    └── IronPython  (custom runtime, no GIL, but Python 3.4 level only,
+                     no NumPy/Pandas, no C extensions)
+```
 
 ---
 
@@ -390,6 +442,8 @@ Console.WriteLine(result);  // 30
 | **Rapid Prototyping** | **DotNetPy** | Zero boilerplate, quick start |
 | **Native AOT Apps** | **DotNetPy** | Only one with AOT support for C#→Python |
 | **File-based App (.NET 10)** | **DotNetPy** | `dotnet run script.cs` scenario support |
+| **Free-threaded Python (PEP 703)** | **DotNetPy** | Only library verified on 3.13t & 3.14t today |
+| **Concurrent / Multi-tenant Hosts** | **DotNetPy** | `CreateIsolated()` per-caller namespace |
 | **AI/ML Production** | **CSnakes** | Zero-copy NumPy, type safety |
 | **Python ↔ .NET Bidirectional** | **pythonnet** | Only one with full bidirectional support |
 | **Pure .NET Scripting** | **IronPython** | No CPython installation required |
@@ -404,9 +458,11 @@ Console.WriteLine(result);  // 30
 
 1. **Lowest Barrier to Entry**: Python execution possible in under 5 lines
 2. **Only Native AOT Support**: The only choice for .NET AOT scenarios
-3. **File-based App Support**: Perfect support for .NET 10's `dotnet run script.cs`
-4. **uv Integration**: Declarative Python environment management built into the library
-5. **Transparent Development**: Experimental status explicitly stated, AI-assisted development disclosed
+3. **Free-threaded Python verified today**: The only library in this list with a public audit and verification matrix on CPython 3.13t and 3.14t (see [`FREETHREADED-AUDIT.md`](FREETHREADED-AUDIT.md))
+4. **Isolated executors**: `Python.CreateIsolated()` produces per-caller Python namespaces — concurrent hosts, plugin sandboxes, and multi-tenant scripting without shared `__main__` pollution
+5. **File-based App Support**: Perfect support for .NET 10's `dotnet run script.cs`
+6. **uv Integration**: Declarative Python environment management built into the library
+7. **Transparent Development**: Experimental status explicitly stated, AI-assisted development disclosed
 
 ### Limitations (To Be Acknowledged)
 
