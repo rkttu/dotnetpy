@@ -19,6 +19,7 @@ Some samples additionally require:
 | [uv-integration](uv-integration/) | Comprehensive test of DotNetPy with uv-managed Python | Python + uv |
 | [declarative-python](declarative-python/) | Declarative Python environment setup with PythonProjectBuilder | uv |
 | [native-aot](native-aot/) | P/Invoke consumer driving the AOT-compiled `DotNetPy.Native.Shared` DLL through its C exports; doubles as a free-threaded Python smoke test | Python + VS C++ tools (Windows) |
+| [ml-embeddings](ml-embeddings/) | End-to-end semantic search with HuggingFace `sentence-transformers`; demonstrates real ML inference, .NET ↔ Python array marshalling, and the isolated-executor pattern | uv (downloads ~1 GB on first run) |
 
 ---
 
