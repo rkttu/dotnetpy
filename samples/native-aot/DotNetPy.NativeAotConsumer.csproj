@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>DotNetPy.Samples.NativeAotConsumer</RootNamespace>
+    <AssemblyName>DotNetPy.NativeAotConsumer</AssemblyName>
+  </PropertyGroup>
+</Project>

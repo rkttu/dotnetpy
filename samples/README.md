@@ -18,6 +18,7 @@ Some samples additionally require:
 | [quickstart](quickstart/) | Minimal example showing basic .NET ↔ Python data flow | Python |
 | [uv-integration](uv-integration/) | Comprehensive test of DotNetPy with uv-managed Python | Python + uv |
 | [declarative-python](declarative-python/) | Declarative Python environment setup with PythonProjectBuilder | uv |
+| [native-aot](native-aot/) | P/Invoke consumer driving the AOT-compiled `DotNetPy.Native.Shared` DLL through its C exports; doubles as a free-threaded Python smoke test | Python + VS C++ tools (Windows) |
 
 ---
 
@@ -150,6 +151,34 @@ executor.Execute("import numpy as np; print(np.mean([1,2,3]))");
 ```
 
 **Source:** [sample.cs](declarative-python/sample.cs)
+
+---
+
+## native-aot
+
+**P/Invoke consumer for the AOT-compiled native DLL** - drives `DotNetPy.Native.Shared`
+through its C exports the way a real C/C++/Rust consumer would. Used as a smoke
+test for the native AOT path and as a regression check for free-threaded Python
+(PEP 703 / `python3.13t` / `python3.14t`) — see
+[docs/FREETHREADED-AUDIT.md](../docs/FREETHREADED-AUDIT.md).
+
+### Setup
+
+```bash
+# Publish the native shared library first (one-time per build).
+# Requires the Visual Studio C++ build tools on Windows.
+dotnet publish src/DotNetPy.Native.Shared/DotNetPy.Native.Shared.csproj \
+    --configuration Release --runtime win-x64
+```
+
+### Run
+
+```bash
+cd samples/native-aot
+dotnet run -- <path-to-python-shared-library>
+```
+
+**Source:** [Program.cs](native-aot/Program.cs) · [README](native-aot/README.md)
 
 ---
 
